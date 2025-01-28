@@ -1,0 +1,11 @@
+{
+  "files.associations": {
+    "typeinfo": "cpp",
+    "*.INFO": "log",
+    "*.S": "gas",
+    "*.sy": "c",
+    "*.WARNING": "log",
+    "runtime.h": "c",
+    "identity.h": "c"
+  }
+}
