@@ -6,6 +6,8 @@
     "*.sy": "c",
     "*.WARNING": "log",
     "runtime.h": "c",
-    "identity.h": "c"
+    "identity.h": "c",
+    "cstdlib": "c",
+    "cstdint": "cpp"
   }
 }

@@ -30,6 +30,8 @@ set(SOURCES
     ${SECRET_CPP}
 )
 
+add_definitions(-DPCD_CONFIG_CRYPTO_AES_GCM)
+
 # Create a shared library (dynamic library)
 add_library(pcd SHARED ${SOURCES})
 

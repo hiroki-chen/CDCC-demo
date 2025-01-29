@@ -4,3 +4,17 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+polars = { git = "https://github.com/hiroki-chen/polars.git", features = [
+  "lazy",
+  "ipc",
+  "top_k",
+  "parquet",
+  "is_in",
+  "temporal",
+  "cross_join",
+  "dtype-date",
+  "regex",
+  "strings",
+  "dtype-datetime",
+  "semi_anti_join",
+], default-features = false }
