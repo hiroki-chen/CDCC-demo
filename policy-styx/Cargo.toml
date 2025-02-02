@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-polars = { git = "https://github.com/hiroki-chen/polars.git", features = [
+anyhow = "1.0.95"
+polars = { workspace = true, features = [
   "lazy",
   "ipc",
   "top_k",
@@ -18,3 +19,4 @@ polars = { git = "https://github.com/hiroki-chen/polars.git", features = [
   "dtype-datetime",
   "semi_anti_join",
 ], default-features = false }
+policy-styx-sys = { workspace = true }

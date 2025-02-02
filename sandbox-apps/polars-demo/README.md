@@ -1,0 +1,1 @@
+This crate is a simple application that does the SQL operations.

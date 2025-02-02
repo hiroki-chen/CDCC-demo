@@ -32,8 +32,8 @@ set(SOURCES
 
 add_definitions(-DPCD_CONFIG_CRYPTO_AES_GCM)
 
-# Create a shared library (dynamic library)
-add_library(pcd SHARED ${SOURCES})
+# Create a static library. 
+add_library(pcd STATIC ${SOURCES})
 
 # Set the output library name
 set_target_properties(pcd PROPERTIES OUTPUT_NAME "pcd")
