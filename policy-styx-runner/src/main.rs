@@ -6,6 +6,7 @@ use policy_styx_sys::policy::{pcd_get_output_custodian, pcd_get_program_hash};
 
 #[derive(ValueEnum, Debug, Clone)]
 enum PcdAppName {
+    PolarsDemo,
     PolicyEngine,
 }
 
@@ -33,14 +34,14 @@ struct Args {
 
 const PCD_POLICY_ENGINE_NATIVE_SYMBOLS: &[&PcdNativeSymbol] = &[
     &PcdNativeSymbol {
-        symbol: "pcd_get_program_hash",
+        symbol: "pcd_get_program_hash\0",
         func_ptr: pcd_get_program_hash as _,
-        signature: "(*)i",
+        signature: "(*)i\0",
     },
     &PcdNativeSymbol {
-        symbol: "pcd_get_output_custodian",
+        symbol: "pcd_get_output_custodian\0",
         func_ptr: pcd_get_output_custodian as _,
-        signature: "(*)i",
+        signature: "(*)i\0",
     },
 ];
 const PCD_POLICY_ENGINE_WASM_NAME: &str = "policy-styx.wasm";
@@ -84,6 +85,7 @@ fn main() -> WasrResult<()> {
         PcdAppName::PolicyEngine => {
             launch_policy_engine(args.stack_size, args.heap_size, &args.path)?
         },
+        PcdAppName::PolarsDemo => launch_polars_demo(args.stack_size, args.heap_size, &args.path)?,
     }
 
     Ok(())

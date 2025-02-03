@@ -8,6 +8,15 @@
   - `polars-demo`: A demo that uses polars + picachv
   - `medical-analysis`: An algorithm that implements cox analysis over patient data.
 
+  ## Prerequisites
+
+  - Install `emscripten` for building C/C++ programs into WASM binaries.
+
+  ```sh
+  cd /tmp
+  wget https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-25/wasi-sdk-25.0-x86_64-linux.deb
+  ```
+
 ## Workflow of the middleware (a.k.a., the runtime)
 
 1. Application calls `ecall_init_env`

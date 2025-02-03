@@ -5,7 +5,6 @@ use std::os::raw::c_void;
 use policy_styx_sys::crypto::PcdSha256;
 use policy_styx_sys::data::PcdPayload;
 use policy_styx_sys::identity::PcdIdentity;
-use policy_styx_sys::policy::{pcd_get_output_custodian, pcd_get_program_hash};
 
 pub type PolicyResult<T> = anyhow::Result<T>;
 

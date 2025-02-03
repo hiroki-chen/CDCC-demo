@@ -29,9 +29,9 @@ typedef struct _pcd_secret_req_t {
 int pcd_secret_register(pcd_identity_t *id, pcd_secret_t *input_secret);
 int pcd_secret_release(pcd_identity_t *id);
 
-#ifdef PCD_CONFIG_SECRET_REQUESTER
+// #ifdef PCD_CONFIG_SECRET_REQUESTER
 int pcd_secret_fetch(pcd_identity_t *id, pcd_delegator_addr_t *delegator_addr, pcd_secret_t **output_secret);
-#endif
+// #endif
 
 int pcd_secret_retrieve(pcd_identity_t *id, pcd_secret_t **output_secret);
 

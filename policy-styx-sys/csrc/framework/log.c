@@ -1,10 +1,15 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdarg.h>
 
 #include "identity.h"
 
 #include "log_backend.h"
+
+void pcd_print_error(const char *string) {
+    fprintf(stderr, "%s\n", string);
+}
 
 void pcd_log_error(const char *fmt, ...) {
     char buf[BUFSIZ] = { '\0' };

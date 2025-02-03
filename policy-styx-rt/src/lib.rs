@@ -24,11 +24,11 @@ pub fn pcd_env_init(native_symbol_list: &[&PcdNativeSymbol]) {
     let mut native_symbols = native_symbol_list
         .into_iter()
         .map(|sym| NativeSymbol {
-            symbol: CStr::from_bytes_with_nul(sym.symbol.as_bytes())
+            symbol: CStr::from_bytes_until_nul(sym.symbol.as_bytes())
                 .unwrap()
                 .as_ptr(),
             func_ptr: sym.func_ptr,
-            signature: CStr::from_bytes_with_nul(sym.signature.as_bytes())
+            signature: CStr::from_bytes_until_nul(sym.signature.as_bytes())
                 .unwrap()
                 .as_ptr(),
             attachment: std::ptr::null_mut(),

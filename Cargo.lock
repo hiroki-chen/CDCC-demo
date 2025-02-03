@@ -649,13 +649,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43da5946c66ffcc7745f48db692ffbb10a83bfe0afd96235c5c2a4fb23994929"
 
 [[package]]
-name = "demo"
-version = "0.1.0"
-dependencies = [
- "polars",
-]
-
-[[package]]
 name = "dyn-clone"
 version = "1.0.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1861,6 +1854,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "polars-demo"
+version = "0.1.0"
+dependencies = [
+ "polars",
+]
+
+[[package]]
 name = "polars-error"
 version = "0.39.2"
 source = "git+https://github.com/hiroki-chen/polars.git#041e25bb3cffaf8fa54404df7892cdca556bdfe0"
@@ -2126,9 +2126,6 @@ dependencies = [
 [[package]]
 name = "policy-styx-sys"
 version = "0.1.0"
-dependencies = [
- "cmake",
-]
 
 [[package]]
 name = "ppv-lite86"
