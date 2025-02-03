@@ -1,12 +1,12 @@
 # An End-to-End Policy Framework
 
 - `policy-styx-sys`: Rust FFI bindings to Styx' framework APIs such as policy encoding, decoding, data unpacking, etc.
-- `policy-styx-rt`: A wrapper around the native `WAMR` runtime toolkit for hosting apps in `sandbox-apps`.
+- `policy-styx-rt`: A set of wrapper APIs around the native `WAMR` runtime toolkit for hosting apps in `sandbox-apps`.
+- `policy-styx-runner`: A launcher that runs the given application in WASM format.
 - `sandbox-apps`: Applications that live inside the WASM sandbox hosted by WASM Micro Runtime.
   - `policy-styx`: The styx policy engine.
   - `polars-demo`: A demo that uses polars + picachv
   - `medical-analysis`: An algorithm that implements cox analysis over patient data.
-
 
 ## Workflow of the middleware (a.k.a., the runtime)
 

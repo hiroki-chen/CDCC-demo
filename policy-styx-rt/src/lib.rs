@@ -1,4 +1,4 @@
-use std::ffi::{c_char, CString};
+use std::ffi::{c_char, c_void, CStr, CString};
 use std::fs;
 use std::path::PathBuf;
 
@@ -9,9 +9,40 @@ pub type WasrResult<T> = Result<T, RuntimeError>;
 
 const ERR_BUF_LEN: usize = 128;
 
-pub fn pcd_env_init() {
+pub struct PcdNativeSymbol<'sym> {
+    pub symbol: &'sym str,
+    pub func_ptr: *mut c_void,
+    pub signature: &'sym str,
+}
+
+/// Setup the environment for the policy-styx runtime and also register native symbols.
+pub fn pcd_env_init(native_symbol_list: &[&PcdNativeSymbol]) {
     unsafe {
         wasm_runtime_init();
+    }
+
+    let mut native_symbols = native_symbol_list
+        .into_iter()
+        .map(|sym| NativeSymbol {
+            symbol: CStr::from_bytes_with_nul(sym.symbol.as_bytes())
+                .unwrap()
+                .as_ptr(),
+            func_ptr: sym.func_ptr,
+            signature: CStr::from_bytes_with_nul(sym.signature.as_bytes())
+                .unwrap()
+                .as_ptr(),
+            attachment: std::ptr::null_mut(),
+        })
+        .collect::<Vec<_>>();
+
+    // Register native symbols
+    let env = CString::new("env").unwrap();
+    unsafe {
+        wasm_runtime_register_natives(
+            env.as_ptr(),
+            native_symbols.as_mut_ptr(),
+            native_symbols.len() as _,
+        );
     }
 }
 
@@ -114,11 +145,17 @@ impl PcdAppRuntime {
     /// # Errors
     ///
     /// This function will return an error if the function cannot be executed within the WASM runtime.
-    pub fn pcd_runtime_execute_function(&self, func: &str, args: &mut [u32]) -> WasrResult<()> {
-        println!("self.instance => {:?}", self.instance);
+    pub fn pcd_runtime_execute_function(
+        &self,
+        func_name: &str,
+        args: &mut [u32],
+    ) -> WasrResult<()> {
+        let c_func_name = CString::new(func_name).map_err(|e| {
+            RuntimeError::InstantiationFailure(format!("Failed to convert func_name: {}", e))
+        })?;
 
         // We first look up the function by name.
-        let func = unsafe { wasm_runtime_lookup_function(self.instance, func.as_ptr() as _) };
+        let func = unsafe { wasm_runtime_lookup_function(self.instance, c_func_name.as_ptr()) };
         if func.is_null() {
             return Err(RuntimeError::FunctionNotFound);
         }
@@ -167,7 +204,7 @@ mod test {
         d.push("../test/gcd_wasm32_wasi.wasm");
 
         // Initialize environment
-        pcd_env_init();
+        pcd_env_init(&[]);
 
         // Load app
         let app = PcdApp::pcd_app_load(1024 * 6, 1024 * 6, &d).unwrap();
