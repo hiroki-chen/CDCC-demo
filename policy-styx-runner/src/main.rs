@@ -1,3 +1,7 @@
+//! This is the Rust implementation of `transformer_middleware` thing.
+//! 
+//! So this should go enter a dead loop.
+
 use std::path::PathBuf;
 
 use clap::{command, Parser, ValueEnum};
@@ -44,6 +48,7 @@ const PCD_POLICY_ENGINE_NATIVE_SYMBOLS: &[&PcdNativeSymbol] = &[
         signature: "(*)i\0",
     },
 ];
+
 const PCD_POLICY_ENGINE_WASM_NAME: &str = "policy-styx.wasm";
 const POLARS_WASM_NAME: &str = "polars_demo.wasm";
 const POLARS_ENTRY: &str = "polars_demo";
@@ -74,6 +79,8 @@ fn launch_polars_demo(stack_size: u32, heap_size: u32, path: &str) -> WasrResult
     let runtime = PcdAppRuntime::from_pcd_app(app, &[])?;
 
     runtime.pcd_runtime_execute_function(POLARS_ENTRY, &mut [])?;
+    
+    // Main service logic: handle requests; maybe we should launch a server here?
 
     Ok(())
 }
@@ -86,6 +93,17 @@ fn main() -> WasrResult<()> {
             launch_policy_engine(args.stack_size, args.heap_size, &args.path)?
         },
         PcdAppName::PolarsDemo => launch_polars_demo(args.stack_size, args.heap_size, &args.path)?,
+    }
+
+    loop {
+        // Enter a dead loop and wait for the input.
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input)?;
+
+        match input.trim() {
+            "exit" => break,
+            _ => println!("Unknown command: {}", input),
+        }
     }
 
     Ok(())

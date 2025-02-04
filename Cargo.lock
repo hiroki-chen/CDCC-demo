@@ -591,6 +591,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
+name = "cox-demo"
+version = "0.1.0"
+
+[[package]]
 name = "crc32fast"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2111,6 +2115,7 @@ dependencies = [
 name = "policy-styx-rt"
 version = "0.1.0"
 dependencies = [
+ "policy-styx-sys",
  "wamr-rust-sdk",
 ]
 

@@ -3,7 +3,7 @@ resolver = "2"
 members = [
   "policy-styx-rt",
   "policy-styx-runner",
-  "policy-styx-sys",
+  "policy-styx-sys", "sandbox-apps/cox-demo",
   "sandbox-apps/polars-demo",
   "sandbox-apps/policy-styx",
 ]

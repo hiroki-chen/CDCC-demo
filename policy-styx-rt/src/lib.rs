@@ -2,6 +2,7 @@ use std::ffi::{c_char, c_void, CStr, CString};
 use std::fs;
 use std::path::PathBuf;
 
+use policy_styx_sys::crypto::PcdSha256;
 use wamr_rust_sdk::sys::*;
 use wamr_rust_sdk::{ExecError, RuntimeError};
 
