@@ -2,9 +2,8 @@ use std::ffi::{c_char, c_void, CStr, CString};
 use std::fs;
 use std::path::PathBuf;
 
-use policy_styx_sys::crypto::PcdSha256;
 use wamr_rust_sdk::sys::*;
-use wamr_rust_sdk::{ExecError, RuntimeError};
+pub use wamr_rust_sdk::{ExecError, RuntimeError};
 
 pub type WasrResult<T> = Result<T, RuntimeError>;
 
@@ -17,11 +16,13 @@ pub struct PcdNativeSymbol<'sym> {
 }
 
 /// Setup the environment for the policy-styx runtime and also register native symbols.
-pub fn pcd_env_init(native_symbol_list: &[&PcdNativeSymbol]) {
+pub fn pcd_env_init() {
     unsafe {
         wasm_runtime_init();
     }
+}
 
+pub fn pcd_register_native_symbols(native_symbol_list: &[&PcdNativeSymbol]) {
     let mut native_symbols = native_symbol_list
         .into_iter()
         .map(|sym| NativeSymbol {
@@ -205,7 +206,7 @@ mod test {
         d.push("../test/gcd_wasm32_wasi.wasm");
 
         // Initialize environment
-        pcd_env_init(&[]);
+        pcd_env_init();
 
         // Load app
         let app = PcdApp::pcd_app_load(1024 * 6, 1024 * 6, &d).unwrap();

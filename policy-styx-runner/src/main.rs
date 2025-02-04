@@ -1,110 +1,75 @@
 //! This is the Rust implementation of `transformer_middleware` thing.
-//! 
+//!
 //! So this should go enter a dead loop.
 
 use std::path::PathBuf;
 
-use clap::{command, Parser, ValueEnum};
-use policy_styx_rt::{pcd_env_init, PcdApp, PcdAppRuntime, PcdNativeSymbol, WasrResult};
-use policy_styx_sys::policy::{pcd_get_output_custodian, pcd_get_program_hash};
+use policy_styx_rt::{pcd_env_init, PcdApp, PcdAppRuntime, RuntimeError, WasrResult};
+use styx_runner::StyxRunner;
 
-#[derive(ValueEnum, Debug, Clone)]
-enum PcdAppName {
-    PolarsDemo,
-    PolicyEngine,
-}
+mod styx_runner;
 
-#[derive(Parser, Debug)]
-#[command(name = "policy-styx-runner", version, about, author)]
-struct Args {
-    #[clap(
-        short,
-        long,
-        default_value = "policy-styx.wasm",
-        help = "Path to where the WASM module lives"
-    )]
-    path: String,
-    #[clap(short, long, default_value = "8192", help = "Size of the stack")]
-    stack_size: u32,
-    #[clap(long, default_value = "8192", help = "Size of the heap")]
-    heap_size: u32,
-    #[clap(
-        long,
-        default_value = "PolicyEngine",
-        help = "Name of the policy engine"
-    )]
-    app_name: PcdAppName,
-}
-
-const PCD_POLICY_ENGINE_NATIVE_SYMBOLS: &[&PcdNativeSymbol] = &[
-    &PcdNativeSymbol {
-        symbol: "pcd_get_program_hash\0",
-        func_ptr: pcd_get_program_hash as _,
-        signature: "(*)i\0",
-    },
-    &PcdNativeSymbol {
-        symbol: "pcd_get_output_custodian\0",
-        func_ptr: pcd_get_output_custodian as _,
-        signature: "(*)i\0",
-    },
-];
-
-const PCD_POLICY_ENGINE_WASM_NAME: &str = "policy-styx.wasm";
-const POLARS_WASM_NAME: &str = "polars_demo.wasm";
+// const PCD_POLICY_ENGINE_WASM_NAME: &str = "policy-styx.wasm";
+// const POLARS_WASM_NAME: &str = "polars_demo.wasm";
 const POLARS_ENTRY: &str = "polars_demo";
 
-/// Launches the policy engine.
-fn launch_policy_engine(stack_size: u32, heap_size: u32, path: &str) -> WasrResult<()> {
-    // First let us initialize the policy-styx runtime environment.
-    pcd_env_init(PCD_POLICY_ENGINE_NATIVE_SYMBOLS);
-
-    let mut path = PathBuf::from(path);
-    path.push(PCD_POLICY_ENGINE_WASM_NAME);
+fn pcd_load_app(stack_size: u32, heap_size: u32, path: &str) -> WasrResult<PcdAppRuntime> {
+    let path = PathBuf::from(path);
 
     // Load app
     let app = PcdApp::pcd_app_load(stack_size, heap_size, &path)?;
     // Create runtime
     let runtime = PcdAppRuntime::from_pcd_app(app, &[])?;
 
-    Ok(())
-}
-
-fn launch_polars_demo(stack_size: u32, heap_size: u32, path: &str) -> WasrResult<()> {
-    pcd_env_init(PCD_POLICY_ENGINE_NATIVE_SYMBOLS);
-
-    let mut path = PathBuf::from(path);
-    path.push(POLARS_WASM_NAME);
-
-    let app = PcdApp::pcd_app_load(stack_size, heap_size, &path)?;
-    let runtime = PcdAppRuntime::from_pcd_app(app, &[])?;
-
-    runtime.pcd_runtime_execute_function(POLARS_ENTRY, &mut [])?;
-    
-    // Main service logic: handle requests; maybe we should launch a server here?
-
-    Ok(())
+    Ok(runtime)
 }
 
 fn main() -> WasrResult<()> {
-    let args = Args::parse();
+    pcd_env_init();
 
-    match args.app_name {
-        PcdAppName::PolicyEngine => {
-            launch_policy_engine(args.stack_size, args.heap_size, &args.path)?
-        },
-        PcdAppName::PolarsDemo => launch_polars_demo(args.stack_size, args.heap_size, &args.path)?,
+    println!("Please load the policy engine.");
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input)?;
+
+    let args = input.trim().split_whitespace().collect::<Vec<_>>();
+
+    if args.len() < 3 {
+        println!("Usage: [path] [stack size] [heap size]");
+        return Ok(());
     }
 
-    loop {
-        // Enter a dead loop and wait for the input.
-        let mut input = String::new();
-        std::io::stdin().read_line(&mut input)?;
+    let stack_size = args[1]
+        .parse()
+        .map_err(|_| RuntimeError::CompilationError("Stack size invalid".into()))?;
+    let heap_size = args[2]
+        .parse()
+        .map_err(|_| RuntimeError::CompilationError("Heap size invalid".into()))?;
 
-        match input.trim() {
-            "exit" => break,
-            _ => println!("Unknown command: {}", input),
-        }
+    let runtime = pcd_load_app(stack_size, heap_size, args[0])?;
+    println!("Policy engine loaded at {}", args[0]);
+
+    let mut styx_runner = StyxRunner::new(runtime);
+
+    println!("Please now load the sandboxed application.");
+    std::io::stdin().read_line(&mut input)?;
+    let args = input.trim().split_whitespace().collect::<Vec<_>>();
+
+    if args.len() < 3 {
+        println!("Usage: [path] [stack size] [heap size]");
+        return Ok(());
     }
+
+    let stack_size = args[1]
+        .parse()
+        .map_err(|_| RuntimeError::CompilationError("Stack size invalid".into()))?;
+    let heap_size = args[2]
+        .parse()
+        .map_err(|_| RuntimeError::CompilationError("Heap size invalid".into()))?;
+
+    let runtime = pcd_load_app(stack_size, heap_size, args[0])?;
+    styx_runner.load_app(POLARS_ENTRY, runtime);
+
+    println!("Sandboxed application loaded at {}", args[0]);
 
     Ok(())
 }
