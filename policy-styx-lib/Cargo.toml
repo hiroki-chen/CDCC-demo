@@ -1,0 +1,12 @@
+[package]
+name = "policy-styx-lib"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+wasi-common = "29.0.1"
+wasmtime = { version = "29.0.1", features = ["runtime"] }
+aes-gcm = { version = "0.10.3" }
+anyhow = { version = "1.0.95", default-features = false }
+sha2 = { version = "0.10.8", default-features = false }
+uuid = "1.13.1"

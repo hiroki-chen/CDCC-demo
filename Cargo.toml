@@ -1,15 +1,14 @@
 [workspace]
 resolver = "2"
 members = [
-  "policy-styx-rt",
+  "policy-styx-lib",
   "policy-styx-runner",
-  "policy-styx-sys", "sandbox-apps/cox-demo",
+  "sandbox-apps/cox-demo",
   "sandbox-apps/polars-demo",
   "sandbox-apps/policy-styx",
 ]
 
 [workspace.dependencies]
 polars = { git = "https://github.com/hiroki-chen/polars.git", default-features = false }
-policy-styx-sys = { path = "policy-styx-sys" }
+policy-styx-lib = { path = "policy-styx-lib" }
 policy-styx = { path = "policy-styx" }
-policy-styx-rt = { path = "policy-styx-rt" }

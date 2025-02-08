@@ -22,4 +22,4 @@ polars = { workspace = true, features = [
   "dtype-datetime",
   "semi_anti_join",
 ], default-features = false }
-policy-styx-sys = { workspace = true }
+policy-styx-lib = { workspace = true }

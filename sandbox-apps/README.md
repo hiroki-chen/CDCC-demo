@@ -7,3 +7,5 @@ This folder contains all sandboxed applications that should compile into the was
 - Medical analysis program
 
 All applications in this directory will be compiled into WASM.
+
+When applications want to 

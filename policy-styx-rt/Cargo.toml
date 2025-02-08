@@ -1,8 +1,0 @@
-[package]
-name = "policy-styx-rt"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-policy-styx-sys = { workspace = true }
-wamr-rust-sdk = { git = "https://github.com/bytecodealliance/wamr-rust-sdk.git" }

@@ -1,75 +1,30 @@
-//! This is the Rust implementation of `transformer_middleware` thing.
-//!
-//! So this should go enter a dead loop.
+use policy_styx_lib::app::PcdWasmRuntime;
+use wasi_common::sync::WasiCtxBuilder;
+use wasmtime::{Result, Val};
 
-use std::path::PathBuf;
-
-use policy_styx_rt::{pcd_env_init, PcdApp, PcdAppRuntime, RuntimeError, WasrResult};
-use styx_runner::StyxRunner;
-
-mod styx_runner;
-
-// const PCD_POLICY_ENGINE_WASM_NAME: &str = "policy-styx.wasm";
-// const POLARS_WASM_NAME: &str = "polars_demo.wasm";
 const POLARS_ENTRY: &str = "polars_demo";
+const POLICY_ENGINE: &str = "../wasm_apps/policy_styx.wasm";
+const POLARS_APP: &str = "../wasm_apps/polars_demo.wasm";
 
-fn pcd_load_app(stack_size: u32, heap_size: u32, path: &str) -> WasrResult<PcdAppRuntime> {
-    let path = PathBuf::from(path);
+fn main() -> Result<()> {
+    let wasi_ctx = WasiCtxBuilder::new().inherit_stdio().build();
+    let mut runtime = PcdWasmRuntime::new(wasi_ctx)?;
 
-    // Load app
-    let app = PcdApp::pcd_app_load(stack_size, heap_size, &path)?;
-    // Create runtime
-    let runtime = PcdAppRuntime::from_pcd_app(app, &[])?;
+    runtime.register_native_functions("pcd_data_access", |ptr: i32| -> i64 {
+        println!("pcd_data_access called with ptr: {}", ptr);
+        0
+    })?;
 
-    Ok(runtime)
-}
+    runtime.register_native_functions("pcd_data_release", |ptr: i32| -> i32 {
+        println!("pcd_data_release called with ptr: {}", ptr);
+        0
+    })?;
+    runtime.load_policy_engine(POLICY_ENGINE, 4096..8192)?;
+    runtime.load_new_application("polars", POLARS_APP, 4096..8192)?;
 
-fn main() -> WasrResult<()> {
-    pcd_env_init();
-
-    println!("Please load the policy engine.");
-    let mut input = String::new();
-    std::io::stdin().read_line(&mut input)?;
-
-    let args = input.trim().split_whitespace().collect::<Vec<_>>();
-
-    if args.len() < 3 {
-        println!("Usage: [path] [stack size] [heap size]");
-        return Ok(());
-    }
-
-    let stack_size = args[1]
-        .parse()
-        .map_err(|_| RuntimeError::CompilationError("Stack size invalid".into()))?;
-    let heap_size = args[2]
-        .parse()
-        .map_err(|_| RuntimeError::CompilationError("Heap size invalid".into()))?;
-
-    let runtime = pcd_load_app(stack_size, heap_size, args[0])?;
-    println!("Policy engine loaded at {}", args[0]);
-
-    let mut styx_runner = StyxRunner::new(runtime);
-
-    println!("Please now load the sandboxed application.");
-    std::io::stdin().read_line(&mut input)?;
-    let args = input.trim().split_whitespace().collect::<Vec<_>>();
-
-    if args.len() < 3 {
-        println!("Usage: [path] [stack size] [heap size]");
-        return Ok(());
-    }
-
-    let stack_size = args[1]
-        .parse()
-        .map_err(|_| RuntimeError::CompilationError("Stack size invalid".into()))?;
-    let heap_size = args[2]
-        .parse()
-        .map_err(|_| RuntimeError::CompilationError("Heap size invalid".into()))?;
-
-    let runtime = pcd_load_app(stack_size, heap_size, args[0])?;
-    styx_runner.load_app(POLARS_ENTRY, runtime);
-
-    println!("Sandboxed application loaded at {}", args[0]);
+    let runtime_ptr = Val::I64(runtime.as_mut_ptr() as i64);
+    let return_value = Val::I32(0);
+    runtime.execute_function("polars", POLARS_ENTRY, &[runtime_ptr], &mut [return_value])?;
 
     Ok(())
 }

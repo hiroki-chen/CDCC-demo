@@ -4,5 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-policy-styx-rt = { workspace = true }
-policy-styx-sys = { workspace = true }
+anyhow = { version = "1.0.95", default-features = false }
+policy-styx-lib = {workspace = true}
+wasi-common = "29.0.1"
+wasmtime = { version = "29.0.1", features = ["runtime"] }
