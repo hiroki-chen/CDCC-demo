@@ -2249,6 +2249,7 @@ name = "polars-demo"
 version = "0.1.0"
 dependencies = [
  "polars",
+ "uuid",
 ]
 
 [[package]]
