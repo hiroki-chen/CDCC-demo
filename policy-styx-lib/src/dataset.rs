@@ -1,136 +1,105 @@
-// use std::collections::HashMap;
-// use std::sync::{Arc, LazyLock, RwLock};
-
-// // use wamr_rust_sdk::sys::{wasm_module_inst_t, wasm_runtime_module_dup_data};
-
 use uuid::Uuid;
+use wasi_common::WasiCtx;
+use wasmtime::Result;
 
-use crate::data::PcdPayload;
+use crate::app::PcdWasmRuntime;
+use crate::data::{PcdEncData, PcdPayload};
 
-pub fn pcd_data_access() -> i64 {
-    println!("pcd_data_access called");
-    0
-}
-
-#[repr(C, packed)]
 #[derive(Debug, Clone)]
 pub struct PcdDataset {
     pub dataset_policy_passed: bool,
     pub data_count: u32,
     pub data_max_count: u32,
     pub policy_type: Uuid,
-    pub payload_ptr: *const PcdPayload,
+    pub payload_ptr: PcdPayload,
 }
 
-// pub(crate) fn pcd_dataset_access(
-//     instance: &PcdInstance,
-//     uuid: &Uuid,
-//     idx: usize,
-// ) -> PcdRuntimeOffset {
-//     let lock = PCD_DATA_REGISTRY;
-//     let lock = lock.read().unwrap();
-//     let dataset = match lock.get(uuid) {
-//         Some(dataset) => dataset,
-//         None => return -1, // nullptr.
-//     };
+impl<T> PcdWasmRuntime<T> {
+    #[inline]
+    pub fn pcd_dataset_access(&self, uuid: &Uuid) -> Result<&PcdDataset> {
+        self.data_registry
+            .get(uuid)
+            .ok_or_else(|| anyhow::anyhow!("dataset not found for {uuid}"))
+    }
 
-//     if idx >= dataset.data_count as _ {
-//         return -1;
-//     }
+    #[inline]
+    pub fn pcd_dataset_release(&mut self, uuid: &Uuid) -> Result<()> {
+        self.data_registry.remove(uuid);
+        Ok(())
+    }
 
-//     let payload = unsafe {
-//         &*(dataset
-//             .payload_ptr
-//             .add(idx * std::mem::size_of::<PcdPayload>()) as *const PcdPayload)
-//     };
+    /// Add a new data to the dataset.
+    /// 
+    /// # Note
+    /// 
+    /// This function is meant to be called on the host side when the application is loaded and
+    /// we need to add data to the dataset for further processing by the WASM module. The input
+    /// data is temporarily encrypted to prevent any potential misuse. Once the policy check and
+    /// other stuff is done, the data is decrypted and shared with the WASM module.
+    pub fn pcd_dataset_add_data(&mut self, input_data: PcdEncData) -> Result<Uuid> {
+        let uuid = Uuid::new_v4();
 
-//     // get the shared memory.
+        todo!("We have to deal with encryption here.");
 
-//     // unsafe {
-//     //     wasm_runtime_module_dup_data(
-//     //         instance,
-//     //         payload.payload as *const i8,
-//     //         payload.data_size as u64,
-//     //     ) as *mut u8
-//     // }
-// }
+        Ok(uuid)
+    }
+}
 
-// pub(crate) fn pcd_dataset_release(uuid: &Uuid) -> i32 {
-//     let lock = PCD_DATA_REGISTRY;
-//     let mut lock = lock.write().unwrap();
-//     lock.remove(uuid);
+pub fn pcd_dataset_access(
+    mut caller: wasmtime::Caller<'_, WasiCtx>,
+    ctx: i64,
+    data_uuid: u32,
+) -> i32 {
+    let runtime = unsafe { &*(ctx as *const PcdWasmRuntime<WasiCtx>) };
+    // let app = match runtime.pcd_app_get_app(idx as usize) {
+    //     Some(app) => app,
+    //     None => return -1,
+    // };
+    let memory = match caller.get_export("memory") {
+        Some(export) => match export.into_memory() {
+            Some(memory) => memory,
+            None => return -1,
+        },
+        None => return -1,
+    };
 
-//     0
-// }
+    let data_uuid = match runtime.read(&memory, data_uuid as usize, 16) {
+        Ok(data) => Uuid::from_slice(&data).unwrap(),
+        Err(_) => return -1,
+    };
 
-// pub(crate) fn pcd_dataset_add_data(data_uuid: &Uuid, dataset: &PcdDataset) -> i32 {
-//     let lock = PCD_DATA_REGISTRY;
-//     let mut lock = lock.write().unwrap();
-//     lock.insert(data_uuid.clone(), dataset.clone());
+    match runtime.pcd_dataset_access(&data_uuid) {
+        Ok(dataset) => {
+            // copy into the memory and returns the
 
-//     0
-// }
+            todo!()
+        },
+        Err(_) => -1,
+    }
+}
 
-// pub(crate) fn pcd_dataset_check_policy(uuid: &Uuid, program_owner_id: PcdIdentity) -> i32 {
-//     let lock = PCD_DATA_REGISTRY;
-//     let lock = lock.read().unwrap();
-//     let dataset = match lock.get(uuid) {
-//         Some(dataset) => dataset,
-//         None => return -1, // not found.
-//     };
+pub fn pcd_dataset_release(
+    mut caller: wasmtime::Caller<'_, WasiCtx>,
+    ctx: i64,
+    data_uuid: u32,
+) -> i32 {
+    let runtime = unsafe { &mut *(ctx as *mut PcdWasmRuntime<WasiCtx>) };
 
-//     return pcd_policy_eval_over_dataset(dataset, program_owner_id);
-// }
+    let memory = match caller.get_export("memory") {
+        Some(export) => match export.into_memory() {
+            Some(memory) => memory,
+            None => return -1,
+        },
+        None => return -1,
+    };
 
-// #[no_mangle]
-// pub unsafe extern "C" fn pcd_dataset_access_wrapper(
-//     data_uuid: *const u8,
-//     idx: usize,
-// ) -> PcdRuntimeOffset {
-//     let uuid = std::slice::from_raw_parts(data_uuid, 16)
-//         .try_into()
-//         .unwrap();
+    let data_uuid = match runtime.read(&memory, data_uuid as usize, 16) {
+        Ok(data) => Uuid::from_slice(&data).unwrap(),
+        Err(_) => return -1,
+    };
 
-//     let instance = match pcd_app_get_instance() {
-//         Some(instance) => instance,
-//         None => return -1,
-//     };
-
-//     let instance = instance.lock().unwrap();
-
-//     pcd_dataset_access(&*instance, &uuid, idx)
-// }
-
-// #[no_mangle]
-// pub unsafe extern "C" fn pcd_dataset_release_wrapper(uuid: *const u8) -> i32 {
-//     let uuid = std::slice::from_raw_parts(uuid, 16).try_into().unwrap();
-
-//     pcd_dataset_release(uuid)
-// }
-
-// #[no_mangle]
-// pub unsafe extern "C" fn pcd_dataset_add_data_wrapper(
-//     // _exec_env: wasm_exec_env_t,
-//     data_uuid: *const u8,
-//     dataset: *const PcdDataset,
-// ) -> i32 {
-//     let data_uuid = std::slice::from_raw_parts(data_uuid, 16)
-//         .try_into()
-//         .unwrap();
-//     let dataset = &*dataset;
-
-//     pcd_dataset_add_data(&data_uuid, dataset)
-// }
-
-// #[no_mangle]
-// pub unsafe extern "C" fn pcd_dataset_check_policy_wrapper(
-//     data_uuid: *const u8,
-//     program_owner_id: *const PcdIdentity,
-// ) -> i32 {
-//     let data_uuid = std::slice::from_raw_parts(data_uuid, 16)
-//         .try_into()
-//         .unwrap();
-//     let program_owner_id = &*program_owner_id;
-
-//     pcd_dataset_check_policy(&data_uuid, *program_owner_id)
-// }
+    match runtime.pcd_dataset_release(&data_uuid) {
+        Ok(_) => 0,
+        Err(_) => -1,
+    }
+}
