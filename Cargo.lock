@@ -2249,6 +2249,7 @@ name = "polars-demo"
 version = "0.1.0"
 dependencies = [
  "polars",
+ "policy-styx-lib",
  "uuid",
 ]
 
@@ -2505,6 +2506,8 @@ version = "0.1.0"
 dependencies = [
  "aes-gcm",
  "anyhow",
+ "bincode",
+ "serde",
  "sha2",
  "uuid",
  "wasi-common",

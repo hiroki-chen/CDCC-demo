@@ -8,4 +8,5 @@ crate-type = ["cdylib"]
 
 [dependencies]
 polars = { workspace = true }
+policy-styx-lib = { workspace = true }
 uuid = "1.13.1"

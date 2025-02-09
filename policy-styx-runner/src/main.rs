@@ -13,6 +13,7 @@ fn main() -> Result<()> {
 
     runtime.register_native_functions("pcd_dataset_access", dataset::pcd_dataset_access)?;
     runtime.register_native_functions("pcd_dataset_release", dataset::pcd_dataset_release)?;
+    runtime.register_native_functions("pcd_dataset_add_data", dataset::pcd_dataset_add_data)?;
     runtime.load_policy_engine(POLICY_ENGINE)?;
 
     let idx = runtime.load_new_application(POLARS_APP)?;
