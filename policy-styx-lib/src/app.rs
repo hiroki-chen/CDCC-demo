@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::ffi::c_void;
+use std::fs;
 
 use anyhow::anyhow;
 use uuid::Uuid;
@@ -8,6 +9,7 @@ use wasi_common::snapshots::preview_1::wasi_snapshot_preview1::WasiSnapshotPrevi
 use wasi_common::sync::add_to_linker;
 use wasmtime::{Engine, Func, IntoFunc, Linker, Memory, Result, Store, Val};
 
+use crate::crypto::pcd_crypto_backend_sha256_hash_buffer;
 use crate::dataset::PcdDataset;
 use crate::types::{PcdInstance, PcdModule};
 
@@ -28,7 +30,9 @@ pub struct PcdApp {
     /// The application module.
     pub(crate) module: PcdModule,
     /// The application instance.
-    pub(crate)instance: PcdInstance,
+    pub(crate) instance: PcdInstance,
+    /// The application hash.
+    pub(crate) hash: Vec<u8>,
 }
 
 impl<T> PcdWasmRuntime<T>
@@ -135,9 +139,11 @@ where
     }
 
     fn load_wasm_module(&mut self, path: &str) -> Result<PcdApp> {
-        let app_module = PcdModule::from_file(&self.store.engine(), path)?;
+        let buffer = fs::read_to_string(path)?;
+        let hash = pcd_crypto_backend_sha256_hash_buffer(buffer.as_bytes())?;
+        let app_module = PcdModule::from_binary(&self.store.engine(), buffer.as_bytes())?;
         let app_instance = self.linker.instantiate(&mut self.store, &app_module)?;
-        let app = PcdApp::new(app_module, app_instance);
+        let app = PcdApp::new(app_module, app_instance, hash);
 
         Ok(app)
     }
@@ -146,11 +152,11 @@ where
 impl PcdApp {
     /// Create a new application.
     #[inline]
-    pub fn new(module: PcdModule, instance: PcdInstance) -> Self {
-        Self { module, instance }
+    pub fn new(module: PcdModule, instance: PcdInstance, hash: Vec<u8>) -> Self {
+        Self {
+            module,
+            instance,
+            hash,
+        }
     }
-
-    // pub fn read_memory(&self, offset: u32, size: u32) -> Result<Vec<u8>> {
-    //     self.memory.read(store, offset, buffer)
-    // }
 }

@@ -8,18 +8,4 @@ crate-type = ["cdylib"]
 
 [dependencies]
 anyhow = "1.0.95"
-polars = { workspace = true, features = [
-  "lazy",
-  "ipc",
-  "top_k",
-  "parquet",
-  "is_in",
-  "temporal",
-  "cross_join",
-  "dtype-date",
-  "regex",
-  "strings",
-  "dtype-datetime",
-  "semi_anti_join",
-], default-features = false }
 policy-styx-lib = { workspace = true }

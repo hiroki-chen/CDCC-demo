@@ -9,6 +9,27 @@ members = [
 ]
 
 [workspace.dependencies]
-polars = { git = "https://github.com/hiroki-chen/polars.git", default-features = false }
+polars = { git = "https://github.com/hiroki-chen/polars.git", default-features = false, features = [
+  # "performant",
+  # "fmt",
+  # "simd",
+  "lazy",
+  # "ipc",
+  # "top_k",
+  # "streaming",
+  # "dtype-categorical",
+  # "round_series",
+  # "dtype-struct",
+  "parquet",
+  "to_dummies",
+  "is_in",
+  "temporal",
+  "cross_join",
+  # "dtype-date",
+  # "regex",
+  # "strings",
+  # "dtype-datetime",
+  # "semi_anti_join",
+] }
 policy-styx-lib = { path = "policy-styx-lib" }
 policy-styx = { path = "policy-styx" }

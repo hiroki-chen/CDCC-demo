@@ -172,3 +172,11 @@ pub fn pcd_dataset_add_data(
         Err(_) => -1,
     }
 }
+
+pub fn pcd_dataset_check_policy(
+    mut caller: wasmtime::Caller<'_, WasiCtx>,
+    data_uuid: u32,
+    program_owner_id: u32,
+) {
+    todo!("Implement the policy check function!");
+}
