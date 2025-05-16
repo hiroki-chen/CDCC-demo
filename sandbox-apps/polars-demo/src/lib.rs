@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
@@ -5,7 +7,6 @@ use anyhow::{anyhow, Result};
 use polars::prelude::*;
 use uuid::Uuid;
 
-#[allow(unused)]
 struct PcdRuntimeCtx {
     handle: i64,
 }
@@ -55,10 +56,37 @@ pub unsafe extern "C" fn polars_demo(ctx: i64) -> i32 {
     0
 }
 
+/// Drop NaNs from the given lazy frame.
+///
+/// The forked version of polars is old so we manually implement this.
+fn drop_nans(lf: LazyFrame, subset: Option<Vec<Expr>>) -> LazyFrame {
+    if let Some(subset) = subset {
+        lf.filter(
+            all_horizontal(
+                subset
+                    .into_iter()
+                    .map(|v| v.is_not_nan())
+                    .collect::<Vec<_>>(),
+            )
+            .unwrap(),
+        )
+    } else {
+        lf.filter(
+            all_horizontal([dtype_cols([DataType::Float32, DataType::Float64]).is_not_nan()])
+                .unwrap(),
+        )
+    }
+}
+
+/// Replace the given data.
+fn replace(lf: LazyFrame) -> LazyFrame {
+    todo!()
+}
+
 /// Merge healthcare data.
 ///
 /// The input is a collection of dataframes, each representing a table.
-fn merge_healthcare_data(tables: &HashMap<String, DataFrame>) -> Result<()> {
+fn merge_healthcare_data(tables: &HashMap<String, DataFrame>) -> Result<DataFrame> {
     // We first generate the screening events
     let procedure_table = tables
         .get("procedure")
@@ -153,7 +181,10 @@ fn merge_healthcare_data(tables: &HashMap<String, DataFrame>) -> Result<()> {
             JoinArgs::default(),
         );
 
-    todo!()
+    combined_df
+        .set_policy_checking(true)
+        .collect()
+        .map_err(|e| anyhow!(e))
 }
 
 /// Run Cox analyais with optional privacy enforcement.
@@ -166,24 +197,46 @@ fn run_cox_analysis_with_privacy(combined_data: DataFrame) -> Result<()> {
     // we use a workaround.
     //
     // Delete rows with missing survival time or event.
-    let combined_data = combined_data.filter(all_horizontal(
-        [col("T"), col("event")]
-            .into_iter()
-            .map(|e| e.is_not_nan())
-            .collect::<Vec<_>>(),
-    )?);
+    let combined_data = drop_nans(combined_data, Some([col("T"), col("event")].into()));
 
     // We then convert categorical variables into dummy encodings (0/1 variables or indicator values).
     // In polars, we use `to_dummies` method on `Series`.
     let combined_data = combined_data.collect()?.to_dummies(None, false)?.lazy();
 
-    // We now standardize travel time
+    let min_travel_time_expr = ((col("min_travel_time") - col("min_travel_time").mean())
+        / col("min_travel_time").std(2))
+    .alias("min_travel_time");
+    let travel_time_squared_expr = col("min_travel_time").pow(2).alias("travel_time_squared");
+
+    let combined_data =
+        combined_data.with_columns(&[min_travel_time_expr, travel_time_squared_expr]);
+
+    let schema = combined_data.schema()?;
+    let demo_covariates = schema
+        .iter_names()
+        .filter_map(|c| {
+            if c.starts_with("sex")
+                || c.starts_with("race")
+                || c.starts_with("ethnicity")
+                || c.starts_with("education")
+            {
+                Some(c.as_str())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
 
     //  all_covariates = travel_covariates + demo_covariates + charlson_covariates + sdoh_covariates
-    let mut all_covariates = [CATEGORICAL_COLS, CHARLSON_COVARIATES, TRAVEL_COVARATES]
-        .into_iter()
-        .flat_map(|e| e.to_vec())
-        .collect::<Vec<_>>();
+    let mut all_covariates = [
+        CATEGORICAL_COLS,
+        demo_covariates.as_slice(),
+        CHARLSON_COVARIATES,
+        TRAVEL_COVARATES,
+    ]
+    .into_iter()
+    .flat_map(|e| e.to_vec())
+    .collect::<Vec<_>>();
     all_covariates.push("SDOH");
 
     let cox_data = combined_data.select(
@@ -193,6 +246,10 @@ fn run_cox_analysis_with_privacy(combined_data: DataFrame) -> Result<()> {
             .map(|e| col(e))
             .collect::<Vec<_>>(),
     );
+
+    // Ensure no infinite values or NaN.
+
+    let cox_data = drop_nans(cox_data, None);
 
     Ok(())
 }
