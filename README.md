@@ -13,6 +13,8 @@ We use wasmtime as the runtime.
 
 
 
+Mock dataset is put under `data` directory.
+
 ## Workflow of the middleware (a.k.a., the runtime)
 
 1. Application calls `ecall_init_env`

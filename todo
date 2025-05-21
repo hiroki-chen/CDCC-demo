@@ -1,0 +1,31 @@
+[ ] Add or modify polars `drop_nans`. This interface was added to `LazyFrame` and `DataFrame` since 11/27/2024 (So late!). Seems that the old version we pinned do not have this yet.
+    Updating the forked version might work.
+    
+    The official implementation:
+
+    ```rs
+    pub fn drop_nans(self, subset: Option<Vec<Expr>>) -> Self {
+        if let Some(subset) = subset {
+            self.filter(
+                all_horizontal(
+                    subset
+                        .into_iter()
+                        .map(|v| v.is_not_nan())
+                        .collect::<Vec<_>>(),
+                )
+                .unwrap(),
+            )
+        } else {
+            self.filter(
+                // TODO: when Decimal supports NaN, include here
+                all_horizontal([dtype_cols([DataType::Float32, DataType::Float64]).is_not_nan()])
+                    .unwrap(),
+            )
+        }
+    }
+    ```
+
+
+[ ] Find a working Rust version of `CoxPHFitter` (lifelines).
+[ ] Generate the mock dataset.
+

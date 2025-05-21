@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = [
+members = [ "frontend",
   "policy-styx-lib",
   "policy-styx-runner",
   "sandbox-apps/cox-demo",
