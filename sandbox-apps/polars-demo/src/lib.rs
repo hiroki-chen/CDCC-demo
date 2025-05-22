@@ -1,9 +1,11 @@
 #![allow(unused)]
 
 use std::collections::HashMap;
+use std::io::Cursor;
 use std::sync::OnceLock;
 
 use anyhow::{anyhow, Result};
+use polars::io::mmap::MmapBytesReader;
 use polars::prelude::*;
 use uuid::Uuid;
 
@@ -85,62 +87,98 @@ fn replace(lf: LazyFrame) -> LazyFrame {
 
 /// Merge healthcare data.
 ///
-/// The input is a collection of dataframes, each representing a table.
-fn merge_healthcare_data(tables: &HashMap<String, DataFrame>) -> Result<DataFrame> {
+/// The input is a collection of raw parquet files.
+fn merge_healthcare_data(tables: &HashMap<String, Vec<u8>>) -> Result<DataFrame> {
     // We first generate the screening events
-    let procedure_table = tables
-        .get("procedure")
-        .ok_or(anyhow!("Missing procedure table"))?
-        .clone();
-    let encouter_table = tables
-        .get("encounter")
-        .ok_or(anyhow!("Missing encounter table"))?
-        .clone();
-    let geolocation_table = tables
-        .get("geolocation")
-        .ok_or(anyhow!("Missing geolocation table"))?
-        .clone();
-    let travel_time_table = tables
-        .get("travel_time")
-        .ok_or(anyhow!("Missing travel time table"))?
-        .clone();
-    let rucc_table = tables
-        .get("rucc")
-        .ok_or(anyhow!("Missing rucc table"))?
-        .clone();
-    let diagnosis_table = tables
-        .get("diagnosis")
-        .ok_or(anyhow!("Missing diagnosis table"))?
-        .clone();
-    let demographics_table = tables
-        .get("demographics")
-        .ok_or(anyhow!("Missing demographics table"))?
-        .clone();
+    let procedure_table = IpcReader::new(Cursor::new(
+        tables
+            .get("procedure_table")
+            .ok_or(anyhow!("Missing procedure table"))?
+            .clone(),
+    ))
+    .finish()?;
 
+    let encouter_table = IpcReader::new(Cursor::new(
+        tables
+            .get("encounter")
+            .ok_or(anyhow!("Missing encounter table"))?
+            .clone(),
+    ))
+    .finish()?;
+
+    let geolocation_table = IpcReader::new(Cursor::new(
+        tables
+            .get("geolocation")
+            .ok_or(anyhow!("Missing geolocation table"))?
+            .clone(),
+    ))
+    .finish()?;
+
+    let travel_time_table = IpcReader::new(Cursor::new(
+        tables
+            .get("travel_time")
+            .ok_or(anyhow!("Missing travel time table"))?
+            .clone(),
+    ))
+    .finish()?;
+
+    let rucc_table = IpcReader::new(Cursor::new(
+        tables
+            .get("rucc")
+            .ok_or(anyhow!("Missing rucc table"))?
+            .clone(),
+    ))
+    .finish()?;
+
+    let diagnosis_table = IpcReader::new(Cursor::new(
+        tables
+            .get("diagnosis")
+            .ok_or(anyhow!("Missing diagnosis table"))?
+            .clone(),
+    ))
+    .finish()?;
+
+    let demographics_table = IpcReader::new(Cursor::new(
+        tables
+            .get("demographics")
+            .ok_or(anyhow!("Missing demographics table"))?
+            .clone(),
+    ))
+    .finish()?;
+
+    // duplicate: column with name 'event' has more than one occurrences: 'group_by' failed: 'filter' input failed to resolve
     let screening_events = procedure_table
         .lazy()
-        // GROUP BY p.patient_id
-        .group_by(["patient_id"])
-        .agg([
-            col("start_datetime").min().alias("first_screening_date"),
-            // CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END as event
-            when(col("*").count().gt(lit(0)))
-                .then(lit(1))
-                .otherwise(lit(0))
-                .alias("event"),
-        ])
         .filter(
             // WHERE p.procedure_code IN ("45378", "45380", "45384", "45385")
             (col("procedure_code").eq(lit("45378")))
                 .or(col("procedure_code").eq(lit("45380")))
                 .or(col("procedure_code").eq(lit("45384")))
                 .or(col("procedure_code").eq(lit("45385"))),
-        );
+        )
+        // GROUP BY p.patient_id
+        .group_by(["patient_id"])
+        .agg([
+            col("start_datetime").min().alias("first_screening_date"),
+            // CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END as event
+            // Use `len()` for COUNT(*) equivalent within an aggregation
+            when(len().gt(lit(0))) // Check if the group has more than 0 rows
+                .then(lit(1i32)) // Return 1 (as i32)
+                .otherwise(lit(0i32)) // Else return 0 (as i32)
+                .alias("event"), // Assign the column name 'event'
+        ]);
+
+    println!(
+        "screening_events: {:?}",
+        screening_events.clone().collect()?
+    );
 
     let last_visits = encouter_table
         .lazy()
         .group_by(["patient_id"])
         .agg([col("end_date").max().alias("last_visit_date")]);
+
+    println!("last_visits: {:?}", last_visits.clone().collect()?);
 
     let combined_df = demographics_table
         .lazy()
@@ -182,7 +220,7 @@ fn merge_healthcare_data(tables: &HashMap<String, DataFrame>) -> Result<DataFram
         );
 
     combined_df
-        .set_policy_checking(true)
+        .set_policy_checking(false) // set to false for debugging
         .collect()
         .map_err(|e| anyhow!(e))
 }
@@ -258,10 +296,39 @@ fn run_cox_analysis_with_privacy(combined_data: DataFrame) -> Result<()> {
 
 #[cfg(test)]
 mod test {
+    use std::io::Cursor;
+
     use super::*;
+
+    const TEST_DATA_PATH: &'static str = "../../data";
+    const TABLES: &[&str] = &[
+        "procedure_table",
+        "encounter",
+        "geolocation",
+        "travel_time",
+        "rucc",
+        "diagnosis",
+        "demographics",
+    ];
 
     #[test]
     fn test_merge_healthcare_data() {
-        // merge_healthcare_data();
+        println!(
+            "current dir: {}",
+            std::env::current_dir().unwrap().display()
+        );
+
+        // Read files and convert them into in-memory bytes.
+        let tables = TABLES
+            .iter()
+            .map(|table| {
+                let path = format!("{TEST_DATA_PATH}/{table}.arrow");
+                let bytes = std::fs::read(path).expect("Failed to read file");
+
+                (table.to_string(), bytes)
+            })
+            .collect::<HashMap<_, _>>();
+
+        let merged_data = merge_healthcare_data(&tables).expect("Failed to merge data");
     }
 }

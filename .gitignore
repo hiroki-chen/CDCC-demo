@@ -6,3 +6,5 @@
 
 build
 wasm_apps
+
+*.parquet

@@ -13,7 +13,7 @@ We use wasmtime as the runtime.
 
 
 
-Mock dataset is put under `data` directory.
+Mock dataset is put under `data` directory; we use Apache Arrow as the data exchange format.
 
 ## Workflow of the middleware (a.k.a., the runtime)
 

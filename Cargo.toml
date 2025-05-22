@@ -11,9 +11,11 @@ members = [ "frontend",
 [workspace.dependencies]
 polars = { git = "https://github.com/hiroki-chen/polars.git", default-features = false, features = [
   # "performant",
-  # "fmt",
+  "fmt",
   # "simd",
   "lazy",
+  "polars-io",
+  "ipc",
   # "ipc",
   # "top_k",
   # "streaming",

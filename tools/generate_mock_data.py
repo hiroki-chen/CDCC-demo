@@ -11,6 +11,7 @@ import argparse
 from scipy.stats import norm, multivariate_normal
 from typing import Dict, List, Tuple, Optional
 import os  # Import the os module for path manipulation
+import pyarrow as pa
 
 from comorbidity_info import CHARLSON_CONDITIONS, CONDITION_WEIGHTS
 
@@ -39,6 +40,13 @@ parser.add_argument(
     type=str,
     default="output_data",  # Default output directory
     help="Path to the directory where generated CSV files will be saved (default: output_data)",
+)
+parser.add_argument(
+    "--output_type",
+    type=str,
+    default="csv",
+    choices=["csv", "parquet", "ipc"],
+    help="Output file format (default: csv)",
 )
 args = parser.parse_args()
 
@@ -984,7 +992,7 @@ def verify_data(conn):
     print(f"Max: {travel_times.iloc[0,2]:.1f}")
 
 
-def export_tables_to_csv(conn, output_dir: str):  # Added output_dir parameter
+def export_tables(conn, output_dir: str, ty="csv"):  # Added output_dir parameter
     """Export all tables from database to CSV files"""
     tables = [
         "geolocation",
@@ -1002,13 +1010,27 @@ def export_tables_to_csv(conn, output_dir: str):  # Added output_dir parameter
     for table in tables:
         query = f"SELECT * FROM {table}"
         df = pd.read_sql_query(query, conn)
-        df.to_csv(os.path.join(output_dir, f"{table}.csv"), index=False)
-        print(f"Exported {table}.csv with {len(df)} rows")
+        # df.to_csv(os.path.join(output_dir, f"{table}.csv"), index=False)
+
+        match ty:
+            case "csv":
+                df.to_csv(os.path.join(output_dir, f"{table}.csv"), index=False)
+            case "parquet":
+                df.to_parquet(os.path.join(output_dir, f"{table}.parquet"), index=False)
+            case "ipc":
+                arrow = pa.Table.from_pandas(df)
+                with pa.ipc.new_file(
+                    os.path.join(output_dir, f"{table}.arrow"), arrow.schema
+                ) as writer:
+                    writer.write(arrow)
+            case _:
+                raise ValueError("Invalid export type. Use 'csv', 'parquet', or 'ipc'.")
+        
+        print(f"Exported {table}.{ty} with {len(df)} rows")
 
         print(f"\nFirst few rows of {table}:")
         print(df.head())
         print("\n" + "=" * 50 + "\n")
-
 
 def close_all_connections():
     import sqlite3
@@ -1090,9 +1112,8 @@ def main():
 
         # verify data
         verify_data(conn)
-
-        # Export all tables to CSV using the new output_data_path
-        export_tables_to_csv(conn, args.output_data_path)
+        # export tables
+        export_tables(conn, args.output_data_path, ty=args.output_type)
 
         print(f"\nData generation complete using seed: {SEED}")
 
