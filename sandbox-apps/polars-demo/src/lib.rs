@@ -11,21 +11,15 @@ use polars::io::mmap::MmapBytesReader;
 use polars::prelude::*;
 use uuid::Uuid;
 
+mod consts;
+
+use consts::*;
+
 struct PcdRuntimeCtx {
     handle: i64,
 }
 
 static PCD_RUNTIME_CTX: OnceLock<PcdRuntimeCtx> = OnceLock::new();
-
-/// The columns we are interested in.
-const CATEGORICAL_COLS: &[&str] = &["sex", "race", "ethnicity", "education"];
-/// Charlson covariates for comorbidity.
-const CHARLSON_COVARIATES: &[&str] = &[
-    "mi", "chf", "pvd", "cevd", "dementia", "copd", "rheumd", "pud", "mld", "msld", "diab",
-    "dia_w_c", "hp", "mrend", "srend", "aids", "hiv", "mst", "mal", "Obesity", "WL", "Alcohol",
-    "Drug", "Psycho", "Dep",
-];
-const TRAVEL_COVARATES: &[&str] = &["travel_time", "travel_time_squared"];
 
 extern "C" {
     // Get the target data.
@@ -58,6 +52,106 @@ pub unsafe extern "C" fn polars_demo(ctx: i64) -> i32 {
     println!("pcd_dataset_access: {ret}");
 
     0
+}
+
+fn get_charlson_sql() -> Vec<Expr> {
+    let mut charlson_conditions_exprs = Vec::new();
+
+    for (condition_name, codes_map) in CHARLSON_CONDITIONS.iter() {
+        let icd9_codes_iter = codes_map.get("9").unwrap().iter().map(|s| lit(s.as_str()));
+        let icd10_codes_iter = codes_map.get("10").unwrap().iter().map(|s| lit(s.as_str()));
+
+        // Polars doesn't have a direct equivalent of `in` on a list of expressions.
+        // Instead, we use `is_in` with a literal list or use `any` with `eq`.
+        // For efficiency, especially with `phf::Set`, converting to a `Vec<String>` first is good.
+        let icd9_codes_vec = codes_map
+            .get("9")
+            .unwrap()
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+        let icd10_codes_vec = codes_map
+            .get("10")
+            .unwrap()
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>();
+
+        let condition_expr = when(
+            (col("vocabulary_id")
+                .eq(lit("ICD9CM"))
+                .and(col("diagnosis_code").is_in(lit(Series::new("", icd9_codes_vec))))) // Check ICD9 codes
+            .or(col("vocabulary_id")
+                .eq(lit("ICD10CM"))
+                .and(col("diagnosis_code").is_in(lit(Series::new("", icd10_codes_vec))))), // Check ICD10 codes
+        )
+        .then(lit(1)) // If condition met, assign 1
+        .otherwise(lit(0)) // Otherwise, assign 0
+        .alias(condition_name); // Alias the new column with the condition name
+
+        charlson_conditions_exprs.push(condition_expr);
+    }
+
+    charlson_conditions_exprs
+}
+
+fn get_t() -> Expr {
+    let stropt = StrptimeOptions {
+        format: Some("%Y-%m-%d".to_string()),
+        strict: false,
+        exact: false,
+        cache: false,
+    };
+
+    when(col("event").eq(lit(1)))
+        .then(
+            col("first_screening_date")
+                .str()
+                .to_date(stropt.clone())
+                // Subtract birth_date
+                .sub(
+                    col("birth_date")
+                        .str()
+                        .to_date(stropt.clone())
+                        // Divide by 365.25
+                        .div(lit(365.25)), // Subtract 45
+                )
+                .sub(lit(45))
+                // Round to 2 decimal places
+                .round(2),
+        )
+        .when(col("last_visit_date").is_not_null())
+        .then(
+            col("last_visit_date")
+                .str()
+                .to_date(stropt.clone())
+                // Subtract birth_date
+                .sub(
+                    col("birth_date")
+                        .str()
+                        .to_date(stropt.clone())
+                        // Divide by 365.25
+                        .div(lit(365.25)), // Subtract 45
+                )
+                .sub(lit(45))
+                // Round to 2 decimal places
+                .round(2),
+        )
+        .otherwise(
+            lit(NaiveDate::from_ymd_opt(2024, 1, 1).unwrap())
+                // Subtract birth_date
+                .sub(
+                    col("birth_date")
+                        .str()
+                        .to_date(stropt.clone())
+                        // Divide by 365.25
+                        .div(lit(365.25)), // Subtract 45
+                )
+                .sub(lit(45))
+                // Round to 2 decimal places
+                .round(2),
+        )
+        .alias("T")
 }
 
 /// Drop NaNs from the given lazy frame.
@@ -221,59 +315,68 @@ fn merge_healthcare_data(tables: &HashMap<String, Vec<u8>>) -> Result<DataFrame>
             JoinArgs::default(),
         );
 
-    let t_expr = get_t();
+    println!(
+        "combined_df: {:?}",
+        combined_df
+            .schema()
+            .unwrap()
+            .iter_names()
+            .collect::<Vec<_>>(),
+    );
 
-    let combined_df = combined_df
-        .select([
+    let t_expr = get_t();
+    let charlson_conditions = get_charlson_sql();
+
+    // Warning: In most SQL implementations, output columns of an aggregate query may only reference aggregate functions or
+    // columns named in the GROUP BY clause. It does not make good sense to reference an ordinary column in an aggregate query
+    // because each output row might be composed from two or more rows in the input table(s).
+    //
+    // SQLites does not enforce this restriction; we thus must adjust this non-standard operation.
+    //
+    // The non-aggregate columns will be the rows that satisfy the AGGREGATE clause; for example,
+    // `MIN(A), B, C GROUP BY D` will make B, C non-aggregate columns, and they will be the rows that
+    // satisfy the MIN(A) condition.
+    let sel = vec![
+        vec![
             col("patient_id"),
             col("birth_date"),
-            t_expr,
+            col("event"),
+            col("T"),
             col("sex"),
             col("race"),
             col("ethnicity"),
             col("rucc_code").alias("SDOH"),
             col("education"),
             col("income"),
+            col("travel_time_minutes"),
+        ],
+        charlson_conditions,
+    ]
+    .into_iter()
+    .flat_map(|e| e)
+    .collect::<Vec<_>>();
+
+    let combined_df = combined_df
+        .with_columns([t_expr, col("event").fill_null(lit(0)).alias("event")])
+        .select(sel)
+        .group_by([
+            "patient_id",
+            "birth_date",
+            "event",
+            "sex",
+            "race",
+            "ethnicity",
+            "SDOH",
+            "education",
+            "income",
+            "T",
         ])
-        .group_by(["patient_id"])
         .agg([min("travel_time_minutes") / lit(60.0).alias("min_travel_time")]);
 
     combined_df
         .set_policy_checking(false) // set to false for debugging
         .collect()
         .map_err(|e| anyhow!(e))
-}
-
-pub fn get_t() -> Expr {
-    when(col("event").eq(lit(1)))
-        .then(
-            (col("first_screening_date") - col("birth_date")) // This results in a Duration
-                .cast(DataType::Float64) // Cast Duration to a float to perform division
-                .div(lit(365.25f64)) // Divide by 365 days
-                .sub(lit(45.0))
-                .round(2),
-        )
-        .when(col("last_visit_date").is_not_null())
-        .then(
-            (col("last_visit_date") - col("birth_date")) // This results in a Duration
-                .cast(DataType::Float64) // Cast Duration to a float to perform division
-                .div(lit(365.25f64)) // Divide by 365 days
-                .sub(lit(45.0))
-                .round(2),
-        )
-        .otherwise(
-            (lit(
-                // Assuming '2024-01-01' is a Date
-                polars::series::Series::new("const_date", &[NaiveDate::from_ymd_opt(2024, 1, 1)])
-                    .cast(&DataType::Date)
-                    .unwrap(), // Ensure it's a Date type
-            ) - col("birth_date")) // This results in a Duration
-            .cast(DataType::Float64) // Cast Duration to a float to perform division
-            .div(lit(365.25f64)) // Divide by 365 days
-            .sub(lit(45.0))
-            .round(2),
-        )
-        .alias("T")
 }
 
 /// Run Cox analyais with optional privacy enforcement.
@@ -390,6 +493,12 @@ mod test {
         // Note: The actual Cox analysis is not implemented in this demo.
         // We will just check if the function runs without errors.
         let merged_data = merge_healthcare_data(&tables).expect("Failed to merge data");
+
+        println!(
+            "Merged data schema: {:?}",
+            merged_data.schema().iter_names().collect::<Vec<_>>()
+        );
+
         // Run the Cox analysis with the merged data.
         run_cox_analysis_with_privacy(merged_data).expect("Failed to run Cox analysis");
     }

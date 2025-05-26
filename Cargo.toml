@@ -30,8 +30,8 @@ polars = { git = "https://github.com/hiroki-chen/polars.git", default-features =
   "temporal",
   "cross_join",
   "dtype-date",
-  # "regex",
-  # "strings",
+  "regex",
+  "strings",
   "dtype-datetime",
   # "semi_anti_join",
 ] }
