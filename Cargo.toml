@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
-members = [ "frontend",
+members = [
+  "frontend",
   "policy-styx-lib",
   "policy-styx-runner",
   "sandbox-apps/cox-demo",
@@ -9,6 +10,7 @@ members = [ "frontend",
 ]
 
 [workspace.dependencies]
+chrono = { version = "0.4.41", default-features = false }
 polars = { git = "https://github.com/hiroki-chen/polars.git", default-features = false, features = [
   # "performant",
   "fmt",
@@ -20,17 +22,17 @@ polars = { git = "https://github.com/hiroki-chen/polars.git", default-features =
   # "top_k",
   # "streaming",
   # "dtype-categorical",
-  # "round_series",
+  "round_series",
   # "dtype-struct",
   "parquet",
   "to_dummies",
   "is_in",
   "temporal",
   "cross_join",
-  # "dtype-date",
+  "dtype-date",
   # "regex",
   # "strings",
-  # "dtype-datetime",
+  "dtype-datetime",
   # "semi_anti_join",
 ] }
 policy-styx-lib = { path = "policy-styx-lib" }

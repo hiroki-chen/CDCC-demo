@@ -2,9 +2,11 @@
 
 use std::collections::HashMap;
 use std::io::Cursor;
+use std::ops::{Div, Sub};
 use std::sync::OnceLock;
 
 use anyhow::{anyhow, Result};
+use chrono::NaiveDate;
 use polars::io::mmap::MmapBytesReader;
 use polars::prelude::*;
 use uuid::Uuid;
@@ -87,7 +89,7 @@ fn replace(lf: LazyFrame) -> LazyFrame {
 
 /// Merge healthcare data.
 ///
-/// The input is a collection of raw parquet files.
+/// The input is a collection of raw Apache Arrow files (in-memory).
 fn merge_healthcare_data(tables: &HashMap<String, Vec<u8>>) -> Result<DataFrame> {
     // We first generate the screening events
     let procedure_table = IpcReader::new(Cursor::new(
@@ -219,10 +221,59 @@ fn merge_healthcare_data(tables: &HashMap<String, Vec<u8>>) -> Result<DataFrame>
             JoinArgs::default(),
         );
 
+    let t_expr = get_t();
+
+    let combined_df = combined_df
+        .select([
+            col("patient_id"),
+            col("birth_date"),
+            t_expr,
+            col("sex"),
+            col("race"),
+            col("ethnicity"),
+            col("rucc_code").alias("SDOH"),
+            col("education"),
+            col("income"),
+        ])
+        .group_by(["patient_id"])
+        .agg([min("travel_time_minutes") / lit(60.0).alias("min_travel_time")]);
+
     combined_df
         .set_policy_checking(false) // set to false for debugging
         .collect()
         .map_err(|e| anyhow!(e))
+}
+
+pub fn get_t() -> Expr {
+    when(col("event").eq(lit(1)))
+        .then(
+            (col("first_screening_date") - col("birth_date")) // This results in a Duration
+                .cast(DataType::Float64) // Cast Duration to a float to perform division
+                .div(lit(365.25f64)) // Divide by 365 days
+                .sub(lit(45.0))
+                .round(2),
+        )
+        .when(col("last_visit_date").is_not_null())
+        .then(
+            (col("last_visit_date") - col("birth_date")) // This results in a Duration
+                .cast(DataType::Float64) // Cast Duration to a float to perform division
+                .div(lit(365.25f64)) // Divide by 365 days
+                .sub(lit(45.0))
+                .round(2),
+        )
+        .otherwise(
+            (lit(
+                // Assuming '2024-01-01' is a Date
+                polars::series::Series::new("const_date", &[NaiveDate::from_ymd_opt(2024, 1, 1)])
+                    .cast(&DataType::Date)
+                    .unwrap(), // Ensure it's a Date type
+            ) - col("birth_date")) // This results in a Duration
+            .cast(DataType::Float64) // Cast Duration to a float to perform division
+            .div(lit(365.25f64)) // Divide by 365 days
+            .sub(lit(45.0))
+            .round(2),
+        )
+        .alias("T")
 }
 
 /// Run Cox analyais with optional privacy enforcement.
@@ -311,15 +362,8 @@ mod test {
         "demographics",
     ];
 
-    #[test]
-    fn test_merge_healthcare_data() {
-        println!(
-            "current dir: {}",
-            std::env::current_dir().unwrap().display()
-        );
-
-        // Read files and convert them into in-memory bytes.
-        let tables = TABLES
+    fn get_tables() -> HashMap<String, Vec<u8>> {
+        TABLES
             .iter()
             .map(|table| {
                 let path = format!("{TEST_DATA_PATH}/{table}.arrow");
@@ -327,8 +371,26 @@ mod test {
 
                 (table.to_string(), bytes)
             })
-            .collect::<HashMap<_, _>>();
+            .collect()
+    }
 
+    #[test]
+    fn test_merge_healthcare_data() {
+        let tables = get_tables();
         let merged_data = merge_healthcare_data(&tables).expect("Failed to merge data");
+        assert!(!merged_data.is_empty(), "Merged data should not be empty");
+    }
+
+    #[test]
+    fn test_run_cox_analysis() {
+        let tables = get_tables();
+        // This test assumes that the merge_healthcare_data function works correctly.
+        // In a real-world scenario, you would mock the data or use a test dataset.
+        // Here we just run the function to ensure it does not panic.
+        // Note: The actual Cox analysis is not implemented in this demo.
+        // We will just check if the function runs without errors.
+        let merged_data = merge_healthcare_data(&tables).expect("Failed to merge data");
+        // Run the Cox analysis with the merged data.
+        run_cox_analysis_with_privacy(merged_data).expect("Failed to run Cox analysis");
     }
 }
