@@ -361,8 +361,6 @@ fn merge_healthcare_data(tables: &HashMap<String, Vec<u8>>) -> Result<DataFrame>
         .agg(charlson_agg_exprs)
         .sort(["patient_id"], SortMultipleOptions::default());
 
-    println!("plan: {}", final_df.explain(true)?);
-
     // 7. Collect the result
     final_df
         .set_policy_checking(false) // set to false for debugging
@@ -393,8 +391,10 @@ fn run_cox_analysis_with_privacy(combined_data: DataFrame) -> Result<()> {
         / col("min_travel_time").std(1))
     .alias("min_travel_time");
     let travel_time_squared_expr = col("min_travel_time").pow(2).alias("travel_time_squared");
-    let combined_data =
-        combined_data.with_columns(&[min_travel_time_expr, travel_time_squared_expr]);
+    let combined_data = combined_data
+        .with_column(min_travel_time_expr)
+        // they should be sequentially
+        .with_column(travel_time_squared_expr);
 
     let schema = combined_data.schema()?;
     let demo_covariates = schema
@@ -428,8 +428,17 @@ fn run_cox_analysis_with_privacy(combined_data: DataFrame) -> Result<()> {
     );
 
     // Ensure no infinite values or NaN.
-    let cox_data = drop_nans(cox_data, None);
+    let mut cox_data = drop_nans(cox_data, None).collect()?;
+
+    // for test purpose only
+    let mut f = std::fs::File::create("cox_data.parquet")?;
+    ParquetWriter::new(&mut f).finish(&mut cox_data)?;
+
     // Invoke the CoxPHFitter.
+
+    // Fit Cox model with decreased penalizer to get more significant effects
+    // cph = CoxPHFitter(penalizer=0.1)
+    // cph.fit(cox_data, duration_col='T', event_col='event', robust=True)
 
     Ok(())
 }
