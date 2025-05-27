@@ -54,7 +54,7 @@ pub unsafe extern "C" fn polars_demo(ctx: i64) -> i32 {
     0
 }
 
-fn get_charlson_sql() -> Vec<Expr> {
+fn build_charlson_expressions() -> Vec<Expr> {
     let mut charlson_conditions_exprs = Vec::new();
 
     for (condition_name, codes_map) in CHARLSON_CONDITIONS.iter() {
@@ -87,6 +87,7 @@ fn get_charlson_sql() -> Vec<Expr> {
         )
         .then(lit(1)) // If condition met, assign 1
         .otherwise(lit(0)) // Otherwise, assign 0
+        .max() // Aggregate to get the maximum value (1 if any condition met, 0 otherwise)
         .alias(condition_name); // Alias the new column with the condition name
 
         charlson_conditions_exprs.push(condition_expr);
@@ -95,7 +96,55 @@ fn get_charlson_sql() -> Vec<Expr> {
     charlson_conditions_exprs
 }
 
-fn get_t() -> Expr {
+/// Loads a DataFrame from a byte vector representing an Apache Arrow IPC file.
+fn load_table(tables: &HashMap<String, Vec<u8>>, table_name: &str) -> Result<DataFrame> {
+    let data = tables
+        .get(table_name)
+        .ok_or_else(|| anyhow!("Missing {} table", table_name))?
+        .clone(); // Clone is needed as Cursor takes ownership
+
+    IpcReader::new(Cursor::new(data))
+        .finish()
+        .map_err(|e| anyhow!(e))
+}
+
+/// Generates the 'screening_events' DataFrame.
+fn generate_screening_events(procedure_table: DataFrame) -> LazyFrame {
+    procedure_table
+        .lazy()
+        .filter(
+            // WHERE p.procedure_code IN ("45378", "45380", "45384", "45385")
+            col("procedure_code")
+                .cast(DataType::String)
+                .is_in(lit(Series::new(
+                    "",
+                    vec![
+                        "45378", "45380", "45384", "45385", // Colonoscopy codes
+                    ],
+                ))),
+        )
+        // GROUP BY p.patient_id
+        .group_by(["patient_id"])
+        .agg([
+            col("start_datetime").min().alias("first_screening_date"),
+            // CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END as event
+            when(len().gt(lit(0))) // Check if the group has more than 0 rows
+                .then(lit(1i32)) // Return 1 (as i32)
+                .otherwise(lit(0i32)) // Else return 0 (as i32)
+                .alias("event"), // Assign the column name 'event'
+        ])
+}
+
+/// Calculates the last visit date for each patient.
+fn get_last_visits(encounter_table: DataFrame) -> LazyFrame {
+    encounter_table
+        .lazy()
+        .group_by(["patient_id"])
+        .agg([col("end_date").max().alias("last_visit_date")])
+}
+
+/// Returns the expression for calculating 'T'.
+fn get_t_expression() -> Expr {
     let stropt = StrptimeOptions {
         format: Some("%Y-%m-%d".to_string()),
         strict: false,
@@ -103,51 +152,36 @@ fn get_t() -> Expr {
         cache: false,
     };
 
+    // This produces a duration; we need to fetch days from this.
+    let date_sub = |a: Expr, b: Expr| {
+        a.str()
+            .to_date(stropt.clone())
+            .sub(b.str().to_date(stropt.clone()))
+            .dt()
+            .total_days()
+            .cast(DataType::Float64)
+    };
+
     when(col("event").eq(lit(1)))
         .then(
-            col("first_screening_date")
-                .str()
-                .to_date(stropt.clone())
-                // Subtract birth_date
-                .sub(
-                    col("birth_date")
-                        .str()
-                        .to_date(stropt.clone())
-                        // Divide by 365.25
-                        .div(lit(365.25)), // Subtract 45
-                )
-                .sub(lit(45))
+            date_sub(col("first_screening_date"), col("birth_date")) // Divide by 365.25
+                .div(lit(365.25)) // Subtract 45
+                .sub(lit(45.0))
                 // Round to 2 decimal places
                 .round(2),
         )
         .when(col("last_visit_date").is_not_null())
         .then(
-            col("last_visit_date")
-                .str()
-                .to_date(stropt.clone())
-                // Subtract birth_date
-                .sub(
-                    col("birth_date")
-                        .str()
-                        .to_date(stropt.clone())
-                        // Divide by 365.25
-                        .div(lit(365.25)), // Subtract 45
-                )
-                .sub(lit(45))
+            date_sub(col("last_visit_date"), col("birth_date"))
+                .div(lit(365.25)) // Subtract 45
+                .sub(lit(45.0))
                 // Round to 2 decimal places
                 .round(2),
         )
         .otherwise(
-            lit(NaiveDate::from_ymd_opt(2024, 1, 1).unwrap())
-                // Subtract birth_date
-                .sub(
-                    col("birth_date")
-                        .str()
-                        .to_date(stropt.clone())
-                        // Divide by 365.25
-                        .div(lit(365.25)), // Subtract 45
-                )
-                .sub(lit(45))
+            date_sub(lit("2024-01-01"), col("birth_date"))
+                .div(lit(365.25)) // Subtract 45
+                .sub(lit(45.0))
                 // Round to 2 decimal places
                 .round(2),
         )
@@ -180,200 +214,104 @@ fn drop_nans(lf: LazyFrame, subset: Option<Vec<Expr>>) -> LazyFrame {
 fn replace(lf: LazyFrame) -> LazyFrame {
     todo!()
 }
-
 /// Merge healthcare data.
 ///
 /// The input is a collection of raw Apache Arrow files (in-memory).
+///
+/// TODO: Do we also need to implement data imputation?
 fn merge_healthcare_data(tables: &HashMap<String, Vec<u8>>) -> Result<DataFrame> {
-    // We first generate the screening events
-    let procedure_table = IpcReader::new(Cursor::new(
-        tables
-            .get("procedure_table")
-            .ok_or(anyhow!("Missing procedure table"))?
-            .clone(),
-    ))
-    .finish()?;
+    // 1. Load DataFrames
+    let procedure_table = load_table(tables, "procedure_table")?;
+    let encounter_table = load_table(tables, "encounter")?;
+    let geolocation_table = load_table(tables, "geolocation")?;
+    let travel_time_table = load_table(tables, "travel_time")?;
+    let rucc_table = load_table(tables, "rucc")?;
+    let diagnosis_table = load_table(tables, "diagnosis")?;
+    let demographics_table = load_table(tables, "demographics")?;
 
-    let encouter_table = IpcReader::new(Cursor::new(
-        tables
-            .get("encounter")
-            .ok_or(anyhow!("Missing encounter table"))?
-            .clone(),
-    ))
-    .finish()?;
+    // Create 'rd' DataFrame for cross join
+    let rd = df! {
+        "end_date" => ["2024-01-01"]
+    }?;
 
-    let geolocation_table = IpcReader::new(Cursor::new(
-        tables
-            .get("geolocation")
-            .ok_or(anyhow!("Missing geolocation table"))?
-            .clone(),
-    ))
-    .finish()?;
+    // 2. Preprocessing steps
+    let screening_events = generate_screening_events(procedure_table);
+    let last_visits = get_last_visits(encounter_table);
 
-    let travel_time_table = IpcReader::new(Cursor::new(
-        tables
-            .get("travel_time")
-            .ok_or(anyhow!("Missing travel time table"))?
-            .clone(),
-    ))
-    .finish()?;
-
-    let rucc_table = IpcReader::new(Cursor::new(
-        tables
-            .get("rucc")
-            .ok_or(anyhow!("Missing rucc table"))?
-            .clone(),
-    ))
-    .finish()?;
-
-    let diagnosis_table = IpcReader::new(Cursor::new(
-        tables
-            .get("diagnosis")
-            .ok_or(anyhow!("Missing diagnosis table"))?
-            .clone(),
-    ))
-    .finish()?;
-
-    let demographics_table = IpcReader::new(Cursor::new(
-        tables
-            .get("demographics")
-            .ok_or(anyhow!("Missing demographics table"))?
-            .clone(),
-    ))
-    .finish()?;
-
-    // duplicate: column with name 'event' has more than one occurrences: 'group_by' failed: 'filter' input failed to resolve
-    let screening_events = procedure_table
+    // 3. Perform Joins
+    let mut combined_df_lazy = demographics_table
         .lazy()
-        .filter(
-            // WHERE p.procedure_code IN ("45378", "45380", "45384", "45385")
-            (col("procedure_code").eq(lit("45378")))
-                .or(col("procedure_code").eq(lit("45380")))
-                .or(col("procedure_code").eq(lit("45384")))
-                .or(col("procedure_code").eq(lit("45385"))),
-        )
-        // GROUP BY p.patient_id
-        .group_by(["patient_id"])
-        .agg([
-            col("start_datetime").min().alias("first_screening_date"),
-            // CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END as event
-            // Use `len()` for COUNT(*) equivalent within an aggregation
-            when(len().gt(lit(0))) // Check if the group has more than 0 rows
-                .then(lit(1i32)) // Return 1 (as i32)
-                .otherwise(lit(0i32)) // Else return 0 (as i32)
-                .alias("event"), // Assign the column name 'event'
-        ]);
-
-    println!(
-        "screening_events: {:?}",
-        screening_events.clone().collect()?
-    );
-
-    let last_visits = encouter_table
-        .lazy()
-        .group_by(["patient_id"])
-        .agg([col("end_date").max().alias("last_visit_date")]);
-
-    println!("last_visits: {:?}", last_visits.clone().collect()?);
-
-    let combined_df = demographics_table
-        .lazy()
-        .join(
-            screening_events.lazy(),
-            [col("patient_id")],
-            [col("patient_id")],
-            JoinArgs::default(),
-        )
-        .join(
-            last_visits.lazy(),
-            [col("patient_id")],
-            [col("patient_id")],
-            JoinArgs::default(),
-        )
-        .join(
+        .left_join(screening_events, col("patient_id"), col("patient_id"))
+        .left_join(last_visits, col("patient_id"), col("patient_id"))
+        .left_join(
             geolocation_table.lazy(),
-            [col("patient_id")],
-            [col("patient_id")],
-            JoinArgs::default(),
+            col("patient_id"),
+            col("patient_id"),
         )
-        .join(
+        .left_join(
             travel_time_table.lazy(),
-            [col("census_block")],
-            [col("census_block")],
-            JoinArgs::default(),
+            col("census_block"),
+            col("census_block"),
         )
-        .join(
-            rucc_table.lazy(),
-            [col("census_block")],
-            [col("census_block")],
-            JoinArgs::default(),
-        )
-        .join(
-            diagnosis_table.lazy(),
-            [col("patient_id")],
-            [col("patient_id")],
-            JoinArgs::default(),
-        );
+        .left_join(rucc_table.lazy(), col("census_block"), col("census_block"))
+        .left_join(diagnosis_table.lazy(), col("patient_id"), col("patient_id"))
+        .cross_join(rd.lazy());
 
-    println!(
-        "combined_df: {:?}",
-        combined_df
-            .schema()
-            .unwrap()
-            .iter_names()
-            .collect::<Vec<_>>(),
+    // 4. Add derived columns (T and handle nulls for event)
+    let t_expr = get_t_expression();
+    combined_df_lazy =
+        combined_df_lazy.with_columns([t_expr, col("event").fill_null(lit(0)).alias("event")]);
+
+    // 5. Prepare aggregation expressions
+    let mut charlson_agg_exprs = build_charlson_expressions();
+
+    let common_group_by_cols = vec![
+        "patient_id",
+        "birth_date",
+        "event",
+        "T",
+        "sex",
+        "race",
+        "ethnicity",
+        "SDOH", // Assumes rucc_code is aliased to SDOH in selection if it exists
+        "education",
+        "income",
+    ];
+
+    let select_cols_before_group_by = vec![
+        col("patient_id"),
+        col("birth_date"),
+        col("event"),
+        col("T"),
+        col("sex"),
+        col("race"),
+        col("ethnicity"),
+        // Alias rucc_code to SDOH if it exists
+        col("rucc_code").alias("SDOH"),
+        col("education"),
+        col("income"),
+        col("travel_time_minutes"),
+        col("vocabulary_id"),
+        col("diagnosis_code"),
+    ];
+
+    // Add min_travel_time aggregation
+    charlson_agg_exprs.insert(
+        0,
+        (min("travel_time_minutes") / lit(60.0)).alias("min_travel_time"),
     );
 
-    let t_expr = get_t();
-    let charlson_conditions = get_charlson_sql();
+    // 6. Select, Group By, Aggregate, and Sort
+    let final_df = combined_df_lazy
+        .select(select_cols_before_group_by)
+        .group_by(common_group_by_cols)
+        .agg(charlson_agg_exprs)
+        .sort(["patient_id"], SortMultipleOptions::default());
 
-    // Warning: In most SQL implementations, output columns of an aggregate query may only reference aggregate functions or
-    // columns named in the GROUP BY clause. It does not make good sense to reference an ordinary column in an aggregate query
-    // because each output row might be composed from two or more rows in the input table(s).
-    //
-    // SQLites does not enforce this restriction; we thus must adjust this non-standard operation.
-    //
-    // The non-aggregate columns will be the rows that satisfy the AGGREGATE clause; for example,
-    // `MIN(A), B, C GROUP BY D` will make B, C non-aggregate columns, and they will be the rows that
-    // satisfy the MIN(A) condition.
-    let sel = vec![
-        vec![
-            col("patient_id"),
-            col("birth_date"),
-            col("event"),
-            col("T"),
-            col("sex"),
-            col("race"),
-            col("ethnicity"),
-            col("rucc_code").alias("SDOH"),
-            col("education"),
-            col("income"),
-            col("travel_time_minutes"),
-        ],
-        charlson_conditions,
-    ]
-    .into_iter()
-    .flat_map(|e| e)
-    .collect::<Vec<_>>();
+    println!("plan: {}", final_df.explain(true)?);
 
-    let combined_df = combined_df
-        .with_columns([t_expr, col("event").fill_null(lit(0)).alias("event")])
-        .select(sel)
-        .group_by([
-            "patient_id",
-            "birth_date",
-            "event",
-            "sex",
-            "race",
-            "ethnicity",
-            "SDOH",
-            "education",
-            "income",
-            "T",
-        ])
-        .agg([min("travel_time_minutes") / lit(60.0).alias("min_travel_time")]);
-
-    combined_df
+    // 7. Collect the result
+    final_df
         .set_policy_checking(false) // set to false for debugging
         .collect()
         .map_err(|e| anyhow!(e))
@@ -478,13 +416,6 @@ mod test {
     }
 
     #[test]
-    fn test_merge_healthcare_data() {
-        let tables = get_tables();
-        let merged_data = merge_healthcare_data(&tables).expect("Failed to merge data");
-        assert!(!merged_data.is_empty(), "Merged data should not be empty");
-    }
-
-    #[test]
     fn test_run_cox_analysis() {
         let tables = get_tables();
         // This test assumes that the merge_healthcare_data function works correctly.
@@ -494,10 +425,34 @@ mod test {
         // We will just check if the function runs without errors.
         let merged_data = merge_healthcare_data(&tables).expect("Failed to merge data");
 
-        println!(
-            "Merged data schema: {:?}",
-            merged_data.schema().iter_names().collect::<Vec<_>>()
-        );
+        let df = df! {
+            "a" => ["2024-01-01"],
+            "b" => ["2024-02-01"],
+        }
+        .unwrap();
+
+        let stropt = StrptimeOptions {
+            format: Some("%Y-%m-%d".to_string()),
+            strict: false,
+            exact: false,
+            cache: false,
+        };
+        let df = df
+            .lazy()
+            .with_column(
+                col("a")
+                    .str()
+                    .to_date(stropt.clone())
+                    .sub(col("b").str().to_date(stropt.clone())),
+            )
+            .collect()
+            .unwrap();
+
+        println!("DataFrame after date subtraction: {}", df);
+
+        assert_eq!(merged_data.shape(), (100, 36), "Shape mismatch!");
+
+        println!("Merged data: {}", merged_data);
 
         // Run the Cox analysis with the merged data.
         run_cox_analysis_with_privacy(merged_data).expect("Failed to run Cox analysis");
