@@ -425,31 +425,6 @@ mod test {
         // We will just check if the function runs without errors.
         let merged_data = merge_healthcare_data(&tables).expect("Failed to merge data");
 
-        let df = df! {
-            "a" => ["2024-01-01"],
-            "b" => ["2024-02-01"],
-        }
-        .unwrap();
-
-        let stropt = StrptimeOptions {
-            format: Some("%Y-%m-%d".to_string()),
-            strict: false,
-            exact: false,
-            cache: false,
-        };
-        let df = df
-            .lazy()
-            .with_column(
-                col("a")
-                    .str()
-                    .to_date(stropt.clone())
-                    .sub(col("b").str().to_date(stropt.clone())),
-            )
-            .collect()
-            .unwrap();
-
-        println!("DataFrame after date subtraction: {}", df);
-
         assert_eq!(merged_data.shape(), (100, 36), "Shape mismatch!");
 
         println!("Merged data: {}", merged_data);
