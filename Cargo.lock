@@ -2512,7 +2512,7 @@ dependencies = [
 [[package]]
 name = "polars"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#041e25bb3cffaf8fa54404df7892cdca556bdfe0"
+source = "git+https://github.com/hiroki-chen/polars.git#636ba62af371628b72706c42d10142e4b2250f75"
 dependencies = [
  "getrandom 0.2.15",
  "polars-arrow",
@@ -2531,7 +2531,7 @@ dependencies = [
 [[package]]
 name = "polars-arrow"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#041e25bb3cffaf8fa54404df7892cdca556bdfe0"
+source = "git+https://github.com/hiroki-chen/polars.git#636ba62af371628b72706c42d10142e4b2250f75"
 dependencies = [
  "ahash",
  "atoi",
@@ -2576,7 +2576,7 @@ dependencies = [
 [[package]]
 name = "polars-compute"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#041e25bb3cffaf8fa54404df7892cdca556bdfe0"
+source = "git+https://github.com/hiroki-chen/polars.git#636ba62af371628b72706c42d10142e4b2250f75"
 dependencies = [
  "bytemuck",
  "either",
@@ -2591,7 +2591,7 @@ dependencies = [
 [[package]]
 name = "polars-core"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#041e25bb3cffaf8fa54404df7892cdca556bdfe0"
+source = "git+https://github.com/hiroki-chen/polars.git#636ba62af371628b72706c42d10142e4b2250f75"
 dependencies = [
  "ahash",
  "bitflags 2.8.0",
@@ -2633,7 +2633,7 @@ dependencies = [
 [[package]]
 name = "polars-error"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#041e25bb3cffaf8fa54404df7892cdca556bdfe0"
+source = "git+https://github.com/hiroki-chen/polars.git#636ba62af371628b72706c42d10142e4b2250f75"
 dependencies = [
  "polars-arrow-format",
  "regex",
@@ -2644,7 +2644,7 @@ dependencies = [
 [[package]]
 name = "polars-io"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#041e25bb3cffaf8fa54404df7892cdca556bdfe0"
+source = "git+https://github.com/hiroki-chen/polars.git#636ba62af371628b72706c42d10142e4b2250f75"
 dependencies = [
  "ahash",
  "async-trait",
@@ -2673,7 +2673,7 @@ dependencies = [
 [[package]]
 name = "polars-lazy"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#041e25bb3cffaf8fa54404df7892cdca556bdfe0"
+source = "git+https://github.com/hiroki-chen/polars.git#636ba62af371628b72706c42d10142e4b2250f75"
 dependencies = [
  "ahash",
  "bitflags 2.8.0",
@@ -2697,7 +2697,7 @@ dependencies = [
 [[package]]
 name = "polars-ops"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#041e25bb3cffaf8fa54404df7892cdca556bdfe0"
+source = "git+https://github.com/hiroki-chen/polars.git#636ba62af371628b72706c42d10142e4b2250f75"
 dependencies = [
  "ahash",
  "argminmax",
@@ -2727,7 +2727,7 @@ dependencies = [
 [[package]]
 name = "polars-parquet"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#041e25bb3cffaf8fa54404df7892cdca556bdfe0"
+source = "git+https://github.com/hiroki-chen/polars.git#636ba62af371628b72706c42d10142e4b2250f75"
 dependencies = [
  "ahash",
  "async-stream",
@@ -2752,7 +2752,7 @@ dependencies = [
 [[package]]
 name = "polars-pipe"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#041e25bb3cffaf8fa54404df7892cdca556bdfe0"
+source = "git+https://github.com/hiroki-chen/polars.git#636ba62af371628b72706c42d10142e4b2250f75"
 dependencies = [
  "crossbeam-channel",
  "crossbeam-queue",
@@ -2776,7 +2776,7 @@ dependencies = [
 [[package]]
 name = "polars-plan"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#041e25bb3cffaf8fa54404df7892cdca556bdfe0"
+source = "git+https://github.com/hiroki-chen/polars.git#636ba62af371628b72706c42d10142e4b2250f75"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -2804,7 +2804,7 @@ dependencies = [
 [[package]]
 name = "polars-row"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#041e25bb3cffaf8fa54404df7892cdca556bdfe0"
+source = "git+https://github.com/hiroki-chen/polars.git#636ba62af371628b72706c42d10142e4b2250f75"
 dependencies = [
  "bytemuck",
  "polars-arrow",
@@ -2815,7 +2815,7 @@ dependencies = [
 [[package]]
 name = "polars-sql"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#041e25bb3cffaf8fa54404df7892cdca556bdfe0"
+source = "git+https://github.com/hiroki-chen/polars.git#636ba62af371628b72706c42d10142e4b2250f75"
 dependencies = [
  "hex",
  "polars-arrow",
@@ -2832,7 +2832,7 @@ dependencies = [
 [[package]]
 name = "polars-time"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#041e25bb3cffaf8fa54404df7892cdca556bdfe0"
+source = "git+https://github.com/hiroki-chen/polars.git#636ba62af371628b72706c42d10142e4b2250f75"
 dependencies = [
  "atoi",
  "chrono",
@@ -2851,7 +2851,7 @@ dependencies = [
 [[package]]
 name = "polars-utils"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#041e25bb3cffaf8fa54404df7892cdca556bdfe0"
+source = "git+https://github.com/hiroki-chen/polars.git#636ba62af371628b72706c42d10142e4b2250f75"
 dependencies = [
  "ahash",
  "bytemuck",

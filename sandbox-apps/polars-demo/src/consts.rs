@@ -9,7 +9,17 @@ pub const CHARLSON_COVARIATES: &[&str] = &[
     "dia_w_c", "hp", "mrend", "srend", "aids", "hiv", "mst", "mal", "Obesity", "WL", "Alcohol",
     "Drug", "Psycho", "Dep",
 ];
-pub const TRAVEL_COVARATES: &[&str] = &["travel_time", "travel_time_squared"];
+pub const TRAVEL_COVARATES: &[&str] = &["min_travel_time", "travel_time_squared"];
+
+pub const PREDICTORS: &[&str] = &[
+    "sex",
+    "race",
+    "ethnicity",
+    "education",
+    "income",
+    "min_travel_time",
+    "SDOH",
+];
 
 // Using a macro to make it easier to define the nested HashMap
 // This isn't strictly necessary but makes the syntax cleaner than raw HashMap::from

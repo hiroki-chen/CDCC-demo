@@ -21,7 +21,7 @@ polars = { git = "https://github.com/hiroki-chen/polars.git", default-features =
   # "ipc",
   # "top_k",
   # "streaming",
-  # "dtype-categorical",
+  "dtype-categorical",
   "round_series",
   # "dtype-struct",
   "parquet",

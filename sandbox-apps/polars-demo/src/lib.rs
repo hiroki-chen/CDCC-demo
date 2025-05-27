@@ -142,9 +142,8 @@ fn get_last_visits(encounter_table: DataFrame) -> LazyFrame {
         .group_by(["patient_id"])
         .agg([col("end_date").max().alias("last_visit_date")])
 }
-
-/// Returns the expression for calculating 'T'.
-fn get_t_expression() -> Expr {
+// This produces a duration; we need to fetch days from this.
+fn date_sub(a: Expr, b: Expr) -> Expr {
     let stropt = StrptimeOptions {
         format: Some("%Y-%m-%d".to_string()),
         strict: false,
@@ -152,40 +151,94 @@ fn get_t_expression() -> Expr {
         cache: false,
     };
 
-    // This produces a duration; we need to fetch days from this.
-    let date_sub = |a: Expr, b: Expr| {
-        a.str()
-            .to_date(stropt.clone())
-            .sub(b.str().to_date(stropt.clone()))
-            .dt()
-            .total_days()
-            .cast(DataType::Float64)
-    };
+    a.str()
+        .to_date(stropt.clone())
+        .sub(b.str().to_date(stropt))
+        .dt()
+        .total_days()
+        .cast(DataType::Float64)
+        .div(lit(365.25)) // Subtract 45
+        .sub(lit(45.0))
+        // Round to 2 decimal places
+        .round(2)
+}
 
+/// Returns the expression for calculating 'T'.
+fn get_t_expression() -> Expr {
     when(col("event").eq(lit(1)))
         .then(
-            date_sub(col("first_screening_date"), col("birth_date")) // Divide by 365.25
-                .div(lit(365.25)) // Subtract 45
-                .sub(lit(45.0))
-                // Round to 2 decimal places
-                .round(2),
+            date_sub(col("first_screening_date"), col("birth_date")), // Divide by 365.25
         )
         .when(col("last_visit_date").is_not_null())
-        .then(
-            date_sub(col("last_visit_date"), col("birth_date"))
-                .div(lit(365.25)) // Subtract 45
-                .sub(lit(45.0))
-                // Round to 2 decimal places
-                .round(2),
-        )
-        .otherwise(
-            date_sub(lit("2024-01-01"), col("birth_date"))
-                .div(lit(365.25)) // Subtract 45
-                .sub(lit(45.0))
-                // Round to 2 decimal places
-                .round(2),
-        )
+        .then(date_sub(col("last_visit_date"), col("birth_date")))
+        .otherwise(date_sub(lit("2024-01-01"), col("birth_date")))
         .alias("T")
+}
+
+fn perform_imputation(df: &DataFrame, comorbidity_cols: &[&str]) -> Result<DataFrame> {
+    let df = df.clone().lazy();
+    // lengths don't match: unable to add a column of length 2 to a DataFrame of height 100 ?
+    let encoding_expressions = CATEGORICAL_COLS
+        .iter()
+        .map(|col_name| {
+            col(col_name)
+                .cast(DataType::Categorical(None, CategoricalOrdering::Physical))
+                .cast(DataType::UInt32)
+        })
+        .collect::<Vec<_>>();
+
+    let mut df_encoded = df.with_columns(encoding_expressions);
+
+    // Create the mask for patients without healthcare encounter (T == 0)
+    // This creates a boolean Series (or conceptually, a boolean expression)
+    let mask_expr = col("T").eq(lit(0.0));
+
+    // Count patients matching the mask (equivalent to mask.sum() > 0)
+    // We collect to check the count. In a real pipeline, you might not collect here.
+    let num_patients_without_encounter = df_encoded
+        .clone()
+        .lazy()
+        .filter(mask_expr.clone()) // Filter to get only the masked rows
+        .select([len()]) // Count the rows
+        .collect()?
+        .get(0)
+        .unwrap() // Get the 'count' Series
+        .get(0) // Get the first (and only) value
+        .and_then(|lv| lv.extract::<u32>()) // Extract as u32
+        .unwrap_or(0); // Default to 0 if extraction fails
+
+    if num_patients_without_encounter > 0 {
+        println!(
+            "Found {} patients without healthcare encounter.",
+            num_patients_without_encounter
+        );
+
+        // 1. set all comorbidity variables to 0 for patients without healthcare encounter.
+        let comorbidity_expressions = comorbidity_cols
+            .iter()
+            .map(|&col_name| {
+                when(mask_expr.clone())
+                    .then(lit(0i32))
+                    .otherwise(col(col_name))
+                    .alias(col_name)
+            })
+            .collect::<Vec<_>>();
+        df_encoded = df_encoded.with_columns(comorbidity_expressions);
+
+        // 2. keep event to 0.
+        df_encoded = df_encoded.with_columns([when(mask_expr.clone())
+            .then(lit(0i32))
+            .otherwise(col("event"))
+            .alias("event")]);
+        // 3. set observation time.
+        // For 'T' column: IF mask_expr THEN calculate_new_T ELSE original_T
+        df_encoded = df_encoded.with_columns([when(mask_expr.clone())
+            .then(date_sub(lit("2024-01-01"), col("birth_date")))
+            .otherwise(col("T"))
+            .alias("T")]);
+    }
+
+    df_encoded.collect().map_err(|e| anyhow!(e))
 }
 
 /// Drop NaNs from the given lazy frame.
@@ -331,13 +384,15 @@ fn run_cox_analysis_with_privacy(combined_data: DataFrame) -> Result<()> {
 
     // We then convert categorical variables into dummy encodings (0/1 variables or indicator values).
     // In polars, we use `to_dummies` method on `Series`.
-    let combined_data = combined_data.collect()?.to_dummies(None, false)?.lazy();
+    let combined_data = combined_data
+        .collect()?
+        .columns_to_dummies(CATEGORICAL_COLS.into(), None, false)?
+        .lazy();
 
     let min_travel_time_expr = ((col("min_travel_time") - col("min_travel_time").mean())
-        / col("min_travel_time").std(2))
+        / col("min_travel_time").std(1))
     .alias("min_travel_time");
     let travel_time_squared_expr = col("min_travel_time").pow(2).alias("travel_time_squared");
-
     let combined_data =
         combined_data.with_columns(&[min_travel_time_expr, travel_time_squared_expr]);
 
@@ -345,11 +400,7 @@ fn run_cox_analysis_with_privacy(combined_data: DataFrame) -> Result<()> {
     let demo_covariates = schema
         .iter_names()
         .filter_map(|c| {
-            if c.starts_with("sex")
-                || c.starts_with("race")
-                || c.starts_with("ethnicity")
-                || c.starts_with("education")
-            {
+            if CATEGORICAL_COLS.iter().any(|e| c.starts_with(e)) {
                 Some(c.as_str())
             } else {
                 None
@@ -359,10 +410,9 @@ fn run_cox_analysis_with_privacy(combined_data: DataFrame) -> Result<()> {
 
     //  all_covariates = travel_covariates + demo_covariates + charlson_covariates + sdoh_covariates
     let mut all_covariates = [
-        CATEGORICAL_COLS,
+        TRAVEL_COVARATES,
         demo_covariates.as_slice(),
         CHARLSON_COVARIATES,
-        TRAVEL_COVARATES,
     ]
     .into_iter()
     .flat_map(|e| e.to_vec())
@@ -378,9 +428,7 @@ fn run_cox_analysis_with_privacy(combined_data: DataFrame) -> Result<()> {
     );
 
     // Ensure no infinite values or NaN.
-
     let cox_data = drop_nans(cox_data, None);
-
     // Invoke the CoxPHFitter.
 
     Ok(())
@@ -427,7 +475,8 @@ mod test {
 
         assert_eq!(merged_data.shape(), (100, 36), "Shape mismatch!");
 
-        println!("Merged data: {}", merged_data);
+        let comorbidity_cols = CHARLSON_COVARIATES.iter().map(|&s| s).collect::<Vec<_>>();
+        let encoded_data = perform_imputation(&merged_data, &comorbidity_cols).unwrap();
 
         // Run the Cox analysis with the merged data.
         run_cox_analysis_with_privacy(merged_data).expect("Failed to run Cox analysis");
