@@ -7,6 +7,7 @@ use std::sync::OnceLock;
 
 use anyhow::{anyhow, Result};
 use chrono::NaiveDate;
+use coxfitter::{CoxPHFitter, CoxPHFitterArgs};
 use polars::io::mmap::MmapBytesReader;
 use polars::prelude::*;
 use uuid::Uuid;
@@ -434,11 +435,16 @@ fn run_cox_analysis_with_privacy(combined_data: DataFrame) -> Result<()> {
     let mut f = std::fs::File::create("cox_data.parquet")?;
     ParquetWriter::new(&mut f).finish(&mut cox_data)?;
 
-    // Invoke the CoxPHFitter.
-
     // Fit Cox model with decreased penalizer to get more significant effects
-    // cph = CoxPHFitter(penalizer=0.1)
-    // cph.fit(cox_data, duration_col='T', event_col='event', robust=True)
+    let args = CoxPHFitterArgs {
+        penalizer: 0.1, // Decrease penalizer to get more significant effects
+        robust: true,   // Use robust standard errors
+        duration_col: "T",
+        event_col: "event",
+        ..Default::default()
+    };
+    let mut cph = CoxPHFitter::new(args);
+    cph.fit(&cox_data)?;
 
     Ok(())
 }
