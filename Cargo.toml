@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-  "frontend",
+  "host",
   "policy-styx-lib",
   "policy-styx-runner",
   "sandbox-apps/cox-demo",
@@ -10,6 +10,7 @@ members = [
 ]
 
 [workspace.dependencies]
+anyhow = { version = "1.0.95", default-features = false }
 chrono = { version = "0.4.41", default-features = false }
 polars = { git = "https://github.com/hiroki-chen/polars.git", default-features = false, features = [
   "lazy",
@@ -29,5 +30,5 @@ polars = { git = "https://github.com/hiroki-chen/polars.git", default-features =
 ] }
 policy-styx-lib = { path = "policy-styx-lib" }
 policy-styx = { path = "policy-styx" }
-
-# which feature implicitly enables 'fmt' which then introduces comfy-table???
+tdx = { version = "0.1.0", git = "https://github.com/hiroki-chen/tdx-attestation-sdk.git" }
+dcap-rs = { git = "https://github.com/automata-network/dcap-rs.git" }
