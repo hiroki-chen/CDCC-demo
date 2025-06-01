@@ -4136,6 +4136,7 @@ dependencies = [
  "anyhow",
  "bincode",
  "dcap-rs",
+ "libc",
  "serde",
  "sha2",
  "tdx",
