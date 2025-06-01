@@ -1,0 +1,13 @@
+[package]
+name = "host"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+rocket = "0.5.1"
+dcap-rs = { workspace = true, optional = true }
+
+[features]
+default = ["platform-tdx"]
+platform-tdx = ["dcap-rs"]

@@ -9,7 +9,6 @@ crate-type = ["cdylib"]
 [dependencies]
 anyhow = "1.0.95"
 chrono = { workspace = true }
-# this is wasm friendly so some features in polars break the build.
 coxfitter = { git = "https://github.com/hiroki-chen/coxphfitter.git" }
 polars = { workspace = true }
 uuid = "1.13.1"

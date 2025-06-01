@@ -7,7 +7,7 @@ use std::sync::OnceLock;
 
 use anyhow::{anyhow, Result};
 use chrono::NaiveDate;
-use coxfitter::{CoxPHFitter, CoxPHFitterArgs};
+use coxfitter::{CoxPHFitter, CoxPHFitterArgs, CoxPHResults};
 use polars::io::mmap::MmapBytesReader;
 use polars::prelude::*;
 use uuid::Uuid;
@@ -372,7 +372,7 @@ fn merge_healthcare_data(tables: &HashMap<String, Vec<u8>>) -> Result<DataFrame>
 /// Run Cox analyais with optional privacy enforcement.
 ///
 /// The result would be the fitted CoxPHFitter model and some a dictionary of exlucded columns.
-fn run_cox_analysis_with_privacy(combined_data: DataFrame) -> Result<()> {
+fn run_cox_analysis_with_privacy(combined_data: DataFrame) -> Result<CoxPHResults> {
     let combined_data = combined_data.lazy();
 
     // Drop NaNs. Since the version we used do not yet support this method,
@@ -444,9 +444,7 @@ fn run_cox_analysis_with_privacy(combined_data: DataFrame) -> Result<()> {
         ..Default::default()
     };
     let mut cph = CoxPHFitter::new(args);
-    cph.fit(&cox_data)?;
-
-    Ok(())
+    cph.fit(&cox_data)
 }
 
 #[cfg(test)]
@@ -494,6 +492,10 @@ mod test {
         let encoded_data = perform_imputation(&merged_data, &comorbidity_cols).unwrap();
 
         // Run the Cox analysis with the merged data.
-        run_cox_analysis_with_privacy(merged_data).expect("Failed to run Cox analysis");
+        let res = run_cox_analysis_with_privacy(merged_data);
+
+        assert!(res.is_ok(), "Cannot do cox analysis!");
+
+        println!("res => {res:?}");
     }
 }
