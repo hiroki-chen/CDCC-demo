@@ -1,0 +1,16 @@
+//! Defines the basic types and structs.
+
+syntax = "proto3";
+package policy_styx;
+
+// Request of the remote attestation initialized by the client.
+message PolicyStyxAttestationRequest {}
+
+message PolicyStyxAttestationResponse {
+  // The type of the quote. 1 for TDX; 2 for SEV (not yet implemented).
+  int32 quote_type = 1;
+  // It should returns TDX quote.
+  bytes quote = 2;
+  // gx in the DHKE
+  bytes gx = 3;
+}

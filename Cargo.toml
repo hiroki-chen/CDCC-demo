@@ -2,7 +2,7 @@
 resolver = "2"
 members = [
   "host", "policy-styx-data-owner",
-  "policy-styx-lib",
+  "policy-styx-lib", "policy-styx-proto",
   "policy-styx-runner",
   "sandbox-apps/cox-demo",
   "sandbox-apps/polars-demo",
