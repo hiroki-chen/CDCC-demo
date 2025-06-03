@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-  "host",
+  "host", "policy-styx-data-owner",
   "policy-styx-lib",
   "policy-styx-runner",
   "sandbox-apps/cox-demo",

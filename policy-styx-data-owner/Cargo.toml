@@ -1,0 +1,14 @@
+[package]
+name = "policy-styx-data-owner"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+dcap-rs = { workspace = true }
+json = "0.12.4"
+ureq = { version = "3.0.11", features = ["json"] }
+p256 = { version = "0.13", features = ["ecdsa"] }
+ecdsa = { version = "0.16", features = ["der"] }
+sha2 = "0.10.9"
+x509-certificate = "0.24.0"
