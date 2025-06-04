@@ -8,7 +8,11 @@ anyhow = { workspace = true }
 dcap-rs = { workspace = true }
 json = "0.12.4"
 ureq = { version = "3.0.11", features = ["json"] }
-p256 = { version = "0.13", features = ["ecdsa"] }
+p256 = { version = "0.13", features = ["ecdsa", "ecdh"] }
 ecdsa = { version = "0.16", features = ["der"] }
 sha2 = "0.10.9"
 x509-certificate = "0.24.0"
+tonic = "*"
+tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
+policy-styx-proto = { workspace = true }
+rand_core = { version = "0.9.3", features = ["os_rng"] }

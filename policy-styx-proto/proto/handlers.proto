@@ -1,2 +1,18 @@
 syntax = "proto3";
 package policy_styx;
+
+import "google/protobuf/empty.proto";
+
+import "types.proto";
+
+// The TDX VM will implement these interfaces.
+//
+// Most of the interfaces defined here are relays.
+service PolicyStyxService {
+  // PolicyStyxRemoteAttestation is the remote attestation service.
+  rpc PolicyStyxRemoteAttestation(PolicyStyxAttestationRequest)
+      returns (PolicyStyxAttestationResponse);
+
+  // PolicyStyxUpload is the upload service.
+  rpc PolicyStyxUpload(PolicyStyxUploadRequest) returns (google.protobuf.Empty);
+}

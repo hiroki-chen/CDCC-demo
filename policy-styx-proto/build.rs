@@ -1,14 +1,10 @@
-use std::fs;
-
 fn main() {
-    // Iterate over the files in the `proto` directory
-    let proto_dir = "proto";
-    let paths = fs::read_dir(proto_dir).expect("Failed to read proto directory");
-    for path in paths {
-        let path = path.expect("Failed to read path").path();
-        if path.extension().and_then(|s| s.to_str()) == Some("proto") {
-            // Compile the protobuf file
-            tonic_build::compile_protos(&path).expect("Failed to compile protobuf file");
-        }
-    }
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=proto/types.proto");
+    println!("cargo:rerun-if-changed=proto/handlers.proto");
+
+    tonic_build::configure()
+        .out_dir("src")
+        .compile_protos(&["proto/types.proto", "proto/handlers.proto"], &["proto"])
+        .expect("Failed to compile proto files");
 }

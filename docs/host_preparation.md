@@ -45,3 +45,31 @@ You also need a collateral caching service called Provisioning Certificate Cachi
 You need to register the platform and get `pckid_retireval.csv` via the tool `PCKIDRetrievalTool`. This allows you to get the so-called "enc_ppid".
 
 Using that you can fetch the collateral using your subscription key to the PCK service from Intel.
+
+
+Topology:
+
+```txt
+                                    ┌─────────────────────────────┐
+   ┌────────────────────┐           │   ┌─────────────────────┐   │
+   │                    │           │   │                     │   │
+   │                    │           │   │                     │   │
+   │                    │    gRPC   │   │                     │   │
+   │          ┌─────────┼───────────┼───┤         TDX         │   │
+   │          │         │           │   │                     │   │
+   │          │         │           │   │                     │   │
+   │Host      │         │           │   │                     │   │
+   └──────────┼─────────┘           │   └─────────────────────┘   │
+              │                     │                             │
+              │ gRPC                │             QEMU            │
+              │                     └─────────────────────────────┘
+   ┌──────────┴─────────┐                                          
+   │                    │                                          
+   │                    │                                          
+   │                    │                                          
+   │       Client       │                                          
+   │                    │                                          
+   │                    │                                          
+   │                    │                                          
+   └────────────────────┘                                                                                                                                                                                
+```

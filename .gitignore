@@ -8,3 +8,9 @@ build
 wasm_apps
 
 *.parquet
+*.arrow
+*.csv
+
+*.log
+
+todo

@@ -4,7 +4,10 @@ syntax = "proto3";
 package policy_styx;
 
 // Request of the remote attestation initialized by the client.
-message PolicyStyxAttestationRequest {}
+message PolicyStyxAttestationRequest {
+  // gx in the DHKE
+  bytes gx = 1;
+}
 
 message PolicyStyxAttestationResponse {
   // The type of the quote. 1 for TDX; 2 for SEV (not yet implemented).
@@ -12,5 +15,16 @@ message PolicyStyxAttestationResponse {
   // It should returns TDX quote.
   bytes quote = 2;
   // gx in the DHKE
-  bytes gx = 3;
+  bytes gy = 3;
+  // The session id assigned to this connection.
+  uint64 session_id = 4;
 }
+
+message PolicyStyxUploadRequest {
+  // The session id assigned to this connection.
+  uint64 session_id = 1;
+  // The data to upload.
+  bytes data = 2;
+}
+
+message PolicyStyxUploadResponse {}

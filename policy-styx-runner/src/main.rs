@@ -1,3 +1,5 @@
+//! This is the TDX VM runner that implements the service we needed.
+
 use policy_styx_lib::app::PcdWasmRuntime;
 use policy_styx_lib::dataset;
 use wasi_common::sync::WasiCtxBuilder;

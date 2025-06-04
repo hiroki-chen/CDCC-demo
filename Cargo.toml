@@ -1,8 +1,10 @@
 [workspace]
 resolver = "2"
 members = [
-  "host", "policy-styx-data-owner",
-  "policy-styx-lib", "policy-styx-proto",
+  "policy-styx-server",
+  "policy-styx-data-owner",
+  "policy-styx-lib",
+  "policy-styx-proto",
   "policy-styx-runner",
   "sandbox-apps/cox-demo",
   "sandbox-apps/polars-demo",
@@ -31,5 +33,6 @@ polars = { git = "https://github.com/hiroki-chen/polars.git", default-features =
 ] }
 policy-styx-lib = { path = "policy-styx-lib" }
 policy-styx = { path = "policy-styx" }
+policy-styx-proto = { path = "policy-styx-proto" }
 tdx = { version = "0.1.0", git = "https://github.com/hiroki-chen/tdx-attestation-sdk.git" }
 dcap-rs = { git = "https://github.com/automata-network/dcap-rs.git" }
