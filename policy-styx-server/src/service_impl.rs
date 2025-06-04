@@ -90,9 +90,10 @@ impl PolicyStyxService for PolicyStyxServer {
         if let Some(session) = sessions.get(&(session_id as _)) {
             // Here you would handle the upload using the session key.
             // For now, we just log it.
-            println!(
+            log::info!(
                 "Received upload for session {} with key: {:?}",
-                session.id, session.key
+                session.id,
+                session.key
             );
             Ok(Response::new(()))
         } else {

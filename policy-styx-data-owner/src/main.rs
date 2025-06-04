@@ -8,7 +8,7 @@ mod qvl;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut client = PolicyStyxServiceClient::connect("http://[::1]:10086").await?;
+    let mut client = PolicyStyxServiceClient::connect("http://127.0.0.1:10086").await?;
 
     let secret_key = EphemeralSecret::random(&mut OsRng);
     let public_key = secret_key.public_key();

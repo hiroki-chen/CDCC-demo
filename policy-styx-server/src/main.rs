@@ -10,10 +10,12 @@ mod service_impl;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let addr = format!("[::1]:{}", PORT).parse()?;
+    let addr = format!("0.0.0.0:{}", PORT).parse()?;
     let service = PolicyStyxServer::default();
 
-    env_logger::init();
+    env_logger::builder()
+        .filter_level(log::LevelFilter::Info)
+        .init();
 
     Server::builder()
         .add_service(PolicyStyxServiceServer::new(service))
