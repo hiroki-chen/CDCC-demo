@@ -4273,15 +4273,19 @@ name = "policy-styx-data-owner"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "axum",
  "dcap-rs",
  "ecdsa",
+ "env_logger",
  "json",
+ "log",
  "p256",
- "policy-styx-proto",
  "rand_core 0.9.3",
+ "serde",
+ "serde_with",
  "sha2",
  "tokio",
- "tonic",
+ "tower-http",
  "ureq 3.0.11",
  "x509-certificate",
 ]
@@ -4337,6 +4341,7 @@ dependencies = [
  "rand_core 0.9.3",
  "serde",
  "serde_with",
+ "sudo",
  "tokio",
  "tower-http",
 ]
@@ -5507,6 +5512,16 @@ name = "subtle"
 version = "2.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
+
+[[package]]
+name = "sudo"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "88bd84d4c082e18e37fef52c0088e4407dabcef19d23a607fb4b5ee03b7d5b83"
+dependencies = [
+ "libc",
+ "log",
+]
 
 [[package]]
 name = "syn"

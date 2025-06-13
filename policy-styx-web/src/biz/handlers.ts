@@ -1,6 +1,9 @@
 import { deriveSharedSecret, generateECDHKeypair } from "@/utils/crypto";
 
-export const backend_url = 'http://localhost:10086/api/v1';
+// This is the URL for the compute backend (TDX VM)
+export const compute_backend_url = 'http://localhost:10086/api/v1';
+// This is the URL for verifying quotes
+export const verify_backend_url = 'http://localhost:10087/api/v1';
 
 // Define a type for clarity
 export interface KeyPair {
@@ -27,6 +30,31 @@ export class SecureClient {
       console.error("🔥 Failed to generate key pair:", error);
       throw error; // Re-throw the error to be caught by the caller
     }
+  }
+
+  async verifyQuote(quote: ArrayBuffer) {
+    try {
+      const response = await fetch(`${verify_backend_url}/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ quote: arrayBufferToBase64(quote) }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Quote verification failed with status ${response.status}:`, errorText);
+        throw new Error(`Server responded with ${response.status}`);
+      }
+
+      const result = await response.json();
+      return result.valid;
+    } catch (error) {
+      console.error("🔥 Failed to verify quote:", error);
+      throw error; // Re-throw the error to be caught by the caller
+    }
+
   }
 
   // This is the function called by the button click

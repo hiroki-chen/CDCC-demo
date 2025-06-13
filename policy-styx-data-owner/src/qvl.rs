@@ -1,4 +1,8 @@
 use anyhow::{bail, Context, Result};
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
+use axum::routing::post;
+use axum::{Json, Router};
 use dcap_rs::types::quotes::body::{EnclaveReport, TD10ReportBody};
 use dcap_rs::types::quotes::version_4::{QuoteSignatureDataV4, QuoteV4};
 use dcap_rs::types::quotes::{CertData, QuoteHeader};
@@ -7,7 +11,11 @@ use ecdsa::VerifyingKey;
 use json::JsonValue;
 use p256::ecdsa::Signature;
 use p256::NistP256;
+use serde::{Deserialize, Serialize};
+use serde_with::base64::Base64;
+use serde_with::serde_as;
 use sha2::{Digest, Sha256};
+use tower_http::cors::{self, AllowOrigin, CorsLayer};
 use ureq::tls::TlsConfig;
 use ureq::Agent;
 use x509_certificate::X509Certificate;
@@ -144,4 +152,61 @@ pub fn verify_quote(raw_quote: &[u8]) -> Result<()> {
     verifying_key
         .verify(raw_message, &raw_signature)
         .context("Failed to verify the signature")
+}
+
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug)]
+struct PolicyStyxVerifyRequest {
+    #[serde_as(as = "Base64")]
+    quote: Vec<u8>, // The quote to be verified.
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct PolicyStyxVerifyResponse {
+    valid: bool, // Whether the quote is valid.
+}
+
+impl IntoResponse for PolicyStyxVerifyResponse {
+    fn into_response(self) -> Response {
+        (StatusCode::OK, Json(self)).into_response()
+    }
+}
+
+async fn verify_quote_request(
+    Json(request): Json<PolicyStyxVerifyRequest>,
+) -> Result<PolicyStyxVerifyResponse, StatusCode> {
+    log::info!("Received quote verification request");
+
+    // Verify the quote.
+    let raw_quote = &request.quote;
+    if raw_quote.len() < 384 {
+        log::error!("Quote is too short to be valid");
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    verify_quote(raw_quote).map_err(|_| StatusCode::BAD_REQUEST)?;
+
+    Ok(PolicyStyxVerifyResponse { valid: true })
+}
+
+pub async fn serve(addr: &str, port: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let addr = format!("{}:{}", addr, port);
+    // Define the CORS policy.
+    let cors = CorsLayer::new()
+        .allow_origin(AllowOrigin::any())
+        .allow_methods(cors::Any)
+        .allow_headers(cors::Any);
+
+    env_logger::builder()
+        .filter_level(log::LevelFilter::Info)
+        .init();
+
+    let app = Router::new()
+        .route("/api/v1/verify", post(verify_quote_request))
+        .layer(cors);
+
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    axum::serve(listener, app).await?;
+
+    Ok(())
 }

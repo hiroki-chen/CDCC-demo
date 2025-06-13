@@ -11,6 +11,24 @@ async function attestationButton(client: SecureClient) {
         const response = await client.policyStyxAttestationRequst();
         console.log("✅ Attestation request sent successfully.");
 
+        // Now check if the attestation report is genuine.
+        const report = response.quote;
+        if (!report) {
+            throw new Error("Response does not contain 'report' field.");
+        }
+
+        // Convert back to ArrayBuffer.
+        const reportBuffer = Uint8Array.from(atob(report), c => c.charCodeAt(0)).buffer;
+        console.log("Converted report to ArrayBuffer, size:", reportBuffer.byteLength);
+
+        // Now we verify the quote.
+        const isValid = await client.verifyQuote(reportBuffer);
+        if (!isValid) {
+            throw new Error("Quote verification failed.");
+        }
+
+        console.log("✅ Quote verification successful.");
+
         const gy = response.gy;
         if (!gy) {
             throw new Error("Response does not contain 'gy' field.");
