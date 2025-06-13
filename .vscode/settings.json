@@ -9,5 +9,11 @@
     "identity.h": "c",
     "cstdlib": "c",
     "cstdint": "cpp"
-  }
+  },
+  "eslint.rules.customizations": [
+    {
+      "rule": "prettier/prettier",
+      "severity": "off",
+    }
+  ]
 }
