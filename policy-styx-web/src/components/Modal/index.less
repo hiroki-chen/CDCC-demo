@@ -1,97 +1,142 @@
-// @import (reference) '../../styles/index.less';
+@import (reference) '@/styles/theme.less';
 
-// .modal-overlay {
-//   position: fixed;
-//   inset: 0; // shorthand for top: 0, right: 0, bottom: 0, left: 0
-//   background-color: rgba(0, 0, 0, 0.6);
-//   display: flex;
-//   align-items: center;
-//   justify-content: center;
-//   z-index: 1000;
-//   backdrop-filter: blur(4px);
-//   animation: fadeIn 0.3s ease;
-// }
+.modal-overlay {
+  position: fixed;
+  inset: 0; // shorthand for top: 0, right: 0, bottom: 0, left: 0
+  background-color: rgba(18, 20, 24, 0.7); // Darker, more stylish overlay
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  // The "frosted glass" effect
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-// .modal-content {
-//   background: @card-bg;
-//   border-radius: 8px;
-//   padding: 24px;
-//   width: 90%;
-//   max-width: 600px; // Adjust as needed
-//   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-//   border: 1px solid @border-color;
-//   animation: slideIn 0.3s ease-out;
-// }
+.modal-content {
+  background: @card-bg;
+  border-radius: 16px; // Larger radius for a softer look
+  width: 90%;
+  max-width: 650px; // A comfortable default max-width
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  border: 1px solid @border-color;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh; // Prevent modal from being taller than the viewport
+  animation: slideInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 
-// .modal-header {
-//   display: flex;
-//   justify-content: space-between;
-//   align-items: center;
-//   border-bottom: 1px solid @border-color;
-//   padding-bottom: 16px;
-//   margin-bottom: 16px;
+  // For Firefox
+  scrollbar-width: thin;
+  scrollbar-color: @text-secondary transparent; // thumb-color track-color
 
-//   h3 {
-//     margin: 0;
-//     color: @text-color;
-//   }
-// }
+  // For WebKit browsers (Chrome, Safari, Edge, etc.)
+  &::-webkit-scrollbar {
+    height: 8px; // A slimmer scrollbar
+    width: 8px;
+  }
 
-// .modal-close-button {
-//   background: none;
-//   border: none;
-//   cursor: pointer;
-//   padding: 4px;
-//   border-radius: 50%;
-//   display: flex;
-//   align-items: center;
-//   justify-content: center;
-//   color: @text-secondary;
-//   transition: background-color 0.2s ease, color 0.2s ease;
+  &::-webkit-scrollbar-track {
+    // ✅ This is the key fix: make the track invisible.
+    background: transparent;
+  }
 
-//   &:hover {
-//     background-color: @border-color;
-//     color: @text-color;
-//   }
-// }
+  &::-webkit-scrollbar-thumb {
+    // Style the handle itself
+    background-color: fade(@text-secondary, 50%); // A semi-transparent, subtle color
+    border-radius: 10px; // A modern, rounded look
+    border: 2px solid transparent; // Creates a "padding" effect around the thumb
+    background-clip: content-box; // Ensures the border doesn't get colored by the background
 
-// .modal-body {
-//   color: @text-secondary;
+    &:hover {
+      background-color: fade(@text-secondary, 70%); // More visible on hover
+    }
+  }
+}
 
-//   // Style for code blocks inside the modal
-//   pre {
-//     background-color: darken(@card-bg, 5%);
-//     border: 1px solid @border-color;
-//     border-radius: 6px;
-//     padding: 16px;
-//     font-family: monospace;
-//     white-space: pre-wrap; // Allows long lines to wrap
-//     word-break: break-all; // Breaks long strings
-//     font-size: 13px;
-//     max-height: 50vh; // Make it scrollable if too long
-//     overflow-y: auto;
-//   }
-// }
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 32px;
+  border-bottom: 1px solid @border-color;
+  flex-shrink: 0; // Prevent header from shrinking
+}
 
-// // Animations
-// @keyframes fadeIn {
-//   from {
-//     opacity: 0;
-//   }
+.modal-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: @text-color;
+}
 
-//   to {
-//     opacity: 1;
-//   }
-// }
+.modal-close-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  color: @text-secondary;
+  transition: background-color 0.2s ease, color 0.2s ease;
 
-// @keyframes slideIn {
-//   from {
-//     transform: translateY(-30px);
-//     opacity: 0;
-//   }
+  &:hover {
+    background-color: fade(@border-color, 50%);
+    color: @text-color;
+  }
+}
 
-//   to {
-//     transform: translateY(0);
-//     opacity: 1;
-//   }
-// }
+.modal-body {
+  color: @text-secondary;
+  padding: 24px 32px;
+  line-height: 1.6;
+  overflow-y: auto; // Make body scrollable if content exceeds max-height
+  flex-grow: 1; // Allow body to take up available space
+
+  // Improved styling for JSON display
+  pre {
+    background-color: darken(@card-bg, 4%);
+    border: 1px solid @border-color;
+    border-radius: 8px;
+    padding: 16px;
+    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-size: 13px;
+  }
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end; // Align buttons to the right
+  gap: 12px;
+  padding: 24px 32px;
+  border-top: 1px solid @border-color;
+  background-color: darken(@card-bg, 2%);
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
+  flex-shrink: 0;
+}
+
+// --- Animations ---
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(40px) scale(0.98);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}

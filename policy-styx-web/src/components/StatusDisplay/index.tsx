@@ -1,6 +1,7 @@
 import React from 'react';
 import { CircleNotchIcon, ShieldCheckIcon } from '@phosphor-icons/react';
 import { AttestationReport } from "@/interface/computation";
+import './index.less';
 
 interface StatusDisplayProps {
   status: 'idle' | 'pending' | 'succeeded';

@@ -1,0 +1,305 @@
+@import (reference) '@/styles/theme.less';
+@import (reference) '@/styles/theme.less';
+
+// ✅ STEP 1: Style the new wrapper for centering
+.wizard-page-wrapper {
+  width: 100%;
+  padding: 32px; // The padding/margin moves from the container to the wrapper
+  display: flex;
+  justify-content: center; // Horizontally centers the auto-width container
+  align-items: flex-start;
+
+  overflow-x: auto; // Allows horizontal scrolling if content overflows
+
+  // For Firefox
+  scrollbar-width: thin;
+  scrollbar-color: @text-secondary transparent; // thumb-color track-color
+
+  // For WebKit browsers (Chrome, Safari, Edge, etc.)
+  &::-webkit-scrollbar {
+    height: 8px; // A slimmer scrollbar
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    // ✅ This is the key fix: make the track invisible.
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    // Style the handle itself
+    background-color: fade(@text-secondary, 50%); // A semi-transparent, subtle color
+    border-radius: 10px; // A modern, rounded look
+    border: 2px solid transparent; // Creates a "padding" effect around the thumb
+    background-clip: content-box; // Ensures the border doesn't get colored by the background
+
+    &:hover {
+      background-color: fade(@text-secondary, 70%); // More visible on hover
+    }
+  }
+}
+
+// ✅ STEP 2: Change the container to be content-driven
+.computation-wizard-container {
+  background-color: @card-bg;
+  border-radius: 24px;
+  padding: 48px;
+  color: @text-color;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  transition: all 0.3s ease-in-out;
+
+  // The key change: It's no longer a full-width block.
+  // It will now size itself to be exactly as wide as its child (.wizard-layout).
+  display: inline-block;
+  min-width: 1100px; // A sensible minimum to prevent it looking weird before content loads
+  max-width: 90vw; // A sensible maximum to prevent it from getting huge on ultrawide screens
+
+  overflow-x: auto; // Allows horizontal scrolling if content overflows
+
+  // For Firefox
+  scrollbar-width: thin;
+  scrollbar-color: @text-secondary transparent; // thumb-color track-color
+
+  // For WebKit browsers (Chrome, Safari, Edge, etc.)
+  &::-webkit-scrollbar {
+    height: 8px; // A slimmer scrollbar
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    // ✅ This is the key fix: make the track invisible.
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    // Style the handle itself
+    background-color: fade(@text-secondary, 50%); // A semi-transparent, subtle color
+    border-radius: 10px; // A modern, rounded look
+    border: 2px solid transparent; // Creates a "padding" effect around the thumb
+    background-clip: content-box; // Ensures the border doesn't get colored by the background
+
+    &:hover {
+      background-color: fade(@text-secondary, 70%); // More visible on hover
+    }
+  }
+}
+
+.wizard-layout {
+  display: flex;
+  gap: 4%;
+  min-height: 450px;
+}
+
+.wizard-column {
+  display: flex;
+  flex-direction: column;
+  transition: opacity 0.4s ease;
+
+  // ✅ STEP 3: Give columns a stable, non-shrinkable base size
+  &.title-column {
+    // flex: <grow> <shrink> <basis>
+    flex: 1 0 320px; // Grow, DON'T shrink, start at 320px
+  }
+
+  &.step-column {
+    // flex: <grow> <shrink> <basis>
+    flex: 1 0 500px; // Grow, DON'T shrink, start at 500px
+    border-left: 1px solid @border-color;
+    padding-left: 4%;
+    // REMOVE THIS LINE if you still have it, as it fights our new goal
+    // min-width: 0; // <-- DELETE THIS
+  }
+
+  // (The rest of your styles: .is-disabled, .wizard-main-title, etc., remain the same)
+}
+
+.wizard-main-title {
+  font-size: 38px;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0;
+  color: lighten(@text-color, 10%);
+}
+
+// Styling for the header of each step (number + title).
+.step-header {
+  position: relative; // Anchor for the step number.
+  padding-bottom: 8px;
+  margin-bottom: 24px;
+}
+
+.step-number {
+  position: absolute;
+  top: -32px; // Position above the title.
+  left: 0;
+  font-size: 32px;
+  font-weight: 700;
+  color: fade(@text-secondary, 20%);
+}
+
+.step-title {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0;
+  color: @text-color;
+  line-height: 1.4;
+}
+
+// The content area within each step column.
+.step-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+
+  p {
+    color: @text-secondary;
+    line-height: 1.6;
+    margin: 0 0 8px 0;
+  }
+
+  .ant-btn {
+    // Styles your existing Button component
+    align-self: flex-start;
+  }
+
+  .execute-button {
+    margin-top: 16px;
+    background-color: @success-color;
+    border-color: @success-color;
+
+    &:hover {
+      background-color: lighten(@success-color, 5%);
+      border-color: lighten(@success-color, 5%);
+    }
+  }
+}
+
+.upload-columns {
+  display: flex; // Arrange children (the uploaders) in a row.
+  flex-direction: row; // Be explicit that we want a row.
+  gap: 24px; // Add a nice space between the two uploader columns.
+  align-items: flex-start; // Ensure they align to the top if they have different heights.
+}
+
+// A disabled state for columns that are not yet active.
+&.is-disabled {
+  // The parent container ONLY handles positioning and clickability.
+  // NO filter, NO opacity, NO backdrop-filter here.
+  position: relative;
+  pointer-events: none;
+  user-select: none;
+
+  // Layer 1: The Overlay (Handles ALL dimming and blurring)
+  // This pseudo-element's ONLY job is to blur what's behind it.
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0; // Cover the entire parent
+    z-index: 10;
+    border-radius: inherit;
+
+    // Apply the dimming and blurring effect to the overlay
+    background-color: rgba(30, 32, 43, 0.6); // A solid, semi-transparent color works best
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  // Layer 2: The hint text (Stays perfectly sharp)
+  // This pseudo-element's ONLY job is to display the text.
+  // We remove its own backdrop-filter to prevent conflicts.
+  &::after {
+    content: 'Please complete Step 1 first'; // The message
+    position: absolute;
+    inset: 0;
+    z-index: 11; // Place it on top of the blur overlay
+
+    // Positioning
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    // Styling for the text itself (crisp and readable)
+    font-size: 16px;
+    font-weight: 600;
+    color: lighten(@text-color, 25%);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); // Add a shadow for readability
+  }
+}
+
+
+.execute-button {
+  margin-top: 16px;
+  // This could be a good place for an icon, e.g., with Ant Design's Button `icon` prop
+}
+
+// Indicator for when computation is running
+.computation-pending-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  gap: 12px;
+  color: @text-secondary;
+
+  h4 {
+    color: @text-color;
+    margin: 0;
+    font-size: 16px;
+  }
+
+  p {
+    max-width: 300px;
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+}
+
+// Spinner Animation
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid fade(@primary-color, 30%);
+  border-top-color: @primary-color;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Display for the final result
+.computation-result-display {
+  h4 {
+    color: @success-color;
+    margin-bottom: 16px;
+  }
+
+  pre {
+    background-color: darken(@card-bg, 5%);
+    border-radius: 8px;
+    padding: 16px;
+    border: 1px solid @border-color;
+  }
+}
+
+// --- Modify the existing .is-disabled rule ---
+// We need to add a message for the new disabled column
+&.is-disabled {
+  // ... keep existing styles for ::before ...
+
+  // Modify ::after to handle multiple messages
+  &::after {
+    // Default message
+    content: 'Please complete the previous step first';
+
+    // ... keep existing styles for ::after ...
+    font-size: 16px;
+    // ...etc...
+  }
+}

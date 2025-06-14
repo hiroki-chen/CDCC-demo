@@ -3,25 +3,30 @@ import './index.less';
 import { useEffect, useState } from "react";
 import { SecureClient } from "@/api/cc/types/client";
 import { AttestationReport } from "@/interface/computation";
-import { startAttestation } from "@/api/cc";
+import { startAttestation, parseQuote, uploadFiles } from "@/api/cc";
 import React from "react";
-import Card from "@/components/Card";
 import Button from "@/components/Button";
-import StatusDisplay from "@/components/StatusDisplay";
+// import StatusDisplay from "@/components/StatusDisplay";
 import FileUploader from "@/components/FileUploader";
 import Modal from "@/components/Modal";
 // import { RocketLaunchIcon } from "@phosphor-icons/react";
+import './index.less';
+import AttestationResult from "@/components/AttestationResult";
 
 const ComputationWizard = () => {
   const [client] = useState(() => new SecureClient());
-  const [isClientReady, setIsClientReady] = useState(false);
+  const [, setIsClientReady] = useState(false);
 
   const [attestationStatus, setAttestationStatus] = useState<'idle' | 'pending' | 'succeeded'>('idle');
   const [attestationReport, setAttestationReport] = useState<AttestationReport | null>(null);
+  const [parsedReport, setParsedReport] = useState<string | null>(null);
   const [dataFile, setDataFile] = useState<File | null>(null);
   const [programFile, setProgramFile] = useState<File | null>(null);
 
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
+  const [computationStatus, setComputationStatus] = useState<'idle' | 'pending' | 'succeeded'>('idle');
+  const [computationResult, setComputationResult] = useState<Blob | null>(null);
 
   // On component mount, generate the client's key pair.
   useEffect(() => {
@@ -39,7 +44,10 @@ const ComputationWizard = () => {
       const report = await startAttestation(client);
       setAttestationReport(report);
       setAttestationStatus('succeeded');
-      alert("Attestation started successfully! You can now upload your data and program files.");
+
+      const parsedQuote = await parseQuote(report.quote);
+      setParsedReport(JSON.stringify(parsedQuote, null, 2));
+      console.log("✅ Attestation succeeded:", report);
     } catch (error) {
       console.error("🔥 Error during attestation:", error);
       alert("Failed to start attestation. Please check the console for details.");
@@ -52,91 +60,160 @@ const ComputationWizard = () => {
     if (!dataFile || !programFile || !attestationReport) {
       return; // do nothing.
     }
+
+    // Pack the files and session info into a payload.
+    const payload = {
+      // encryptedDataFile: dataFile,
+      programFile: programFile,
+      sessionId: attestationReport.sessionId,
+    }
+
+    const response = await uploadFiles(client, payload);
   };
 
-  const getAttestationButtonText = () => {
-    if (!isClientReady) {
-      return 'Initializing client...';
-    }
-    if (attestationStatus === 'pending') {
-      return 'Attestation in progress...';
+  const handleStartComputation = async () => {
+    if (!dataFile || !programFile || !attestationReport) {
+      alert("Please ensure both data and program files are uploaded, and the environment is verified.");
+      return; // do nothing.
     }
 
-    return 'Please start attestation';
+    setComputationStatus('pending');
+
+    try {
+      console.log("🚀 Starting computation with ", { dataFile, programFile });
+      await new Promise(resolve => setTimeout(resolve, 20000)); // Simulate computation delay
+
+      // TODO: Replace with actual computation logic
+      const result = 123;
+      setComputationResult(new Blob([result.toString()], { type: 'text/plain' }));
+      setComputationStatus('succeeded');
+      console.log("✅ Computation completed successfully:", result);
+    } catch (error) {
+      console.error("🔥 Error during computation:", error);
+      alert("Failed to start computation. Please check the console for details.");
+      setComputationStatus('idle');
+      alert(`Computation failed: ${error}`);
+    }
   };
 
   return (
-    <div className='computation-wizard-root'>
-      <Card>
-        <h2>Create a New Secure Computation Job</h2>
-
-        {/* --- STEP 1: ATTESTATION --- */}
-        <div className={`step-card ${attestationStatus === 'succeeded' ? 'completed' : ''}`}>
-          <div className='step-header'>
-            <div className='step-indicator'>1</div>
-            <h3> Establish Trust in the Secure Environment</h3>
+    <div className="wizard-page-wrapper">
+      <div className="computation-wizard-container">
+        <div className="wizard-layout">
+          {/* === Column 1: Main Title === */}
+          <div className="wizard-column title-column">
+            <h1 className="wizard-main-title">
+              Create a New Secure Computation Job
+            </h1>
           </div>
-          {attestationStatus !== 'succeeded' && (
-            <>
-              <p>Before uploading any assets, you must verify the integrity of the remote virtual machine.</p>
-              <Button
-                onClick={handleStartAttestation}
-                disabled={!isClientReady || attestationStatus === 'pending'}
-              >
-                {getAttestationButtonText()}
-              </Button>
-            </>
-          )}
-          <StatusDisplay status={attestationStatus} report={attestationReport} onViewReport={() => setIsReportModalOpen(true)} />
+
+          {/* === Column 2: Step 1 - Attestation === */}
+          <div className="wizard-column step-column">
+            <div className="step-header">
+              <span className="step-number">1</span>
+              <h2 className="step-title">Establish Trust in the Secure Environment</h2>
+            </div>
+            <div className="step-content">
+              {attestationStatus !== 'succeeded' && (
+                <>
+                  <p>Before proceeding, you must cryptographically verify the integrity of the remote environment.</p>
+                  <Button
+                    onClick={handleStartAttestation}
+                    disabled={attestationStatus === 'pending'}
+                    type="text"
+                  >
+                    {attestationStatus === 'pending' ? 'Verifying...' : 'Verify Environment'}
+                  </Button>
+                </>
+              )}
+              {attestationStatus === 'succeeded' && attestationReport && (<AttestationResult
+                // status={attestationStatus}
+                report={attestationReport!}
+                onViewReport={() => setIsReportModalOpen(true)}
+              />)}
+            </div>
+          </div>
+
+          {/* === Column 3: Step 2 & 3 - Upload & Execute === */}
+          <div className={`wizard-column step-column ${attestationStatus !== 'succeeded' ? 'is-disabled' : ''}`}>
+            <div className="step-header">
+              <span className="step-number">2</span>
+              <h2 className="step-title">Upload & Execute</h2>
+            </div>
+            <div className="step-content">
+              <p>Once the environment is trusted, upload your assets to begin the computation.</p>
+              <div className="upload-columns">
+                <FileUploader
+                  title="Data Owner: Upload Data"
+                  description="Upload the data file you want to process."
+                  selectedFile={dataFile}
+                  onFileSelect={setDataFile}
+                />
+                <FileUploader
+                  title="Developer: Upload Program"
+                  description="Upload the program file that will process the data."
+                  selectedFile={programFile}
+                  onFileSelect={setProgramFile}
+                />
+              </div>
+              {dataFile && programFile && (
+                <Button onClick={handleFileUpload} className="execute-button">
+                  Upload
+                </Button>
+              )}
+            </div>
+          </div>
+          <div className={`wizard-column step-column ${!dataFile || !programFile ? 'is-disabled' : ''}`}>
+            <div className="step-header">
+              <span className="step-number">3</span>
+              <h2 className="step-title">Execute & View Result</h2>
+            </div>
+            <div className="step-content">
+
+              {/* State 1: Idle - Ready to start */}
+              {computationStatus === 'idle' && (
+                <>
+                  <p>All assets are ready. You can now start the secure computation.</p>
+                  <Button onClick={handleStartComputation} className="execute-button">
+                    Start Secure Computation
+                  </Button>
+                </>
+              )}
+
+              {/* State 2: Pending - Waiting for result */}
+              {computationStatus === 'pending' && (
+                <div className="computation-pending-indicator">
+                  <div className="spinner"></div>
+                  <h4>Computation in progress...</h4>
+                  <p>Please wait while the secure environment processes your job. This may take a moment.</p>
+                </div>
+              )}
+
+              {/* State 3: Succeeded - Display result */}
+              {computationStatus === 'succeeded' && (
+                <div className="computation-result-display">
+                  <h4>Computation Complete</h4>
+                  <pre><code>{computationResult?.size}</code></pre>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* STEP 2 and 3 remain exactly the same as the previous answer, as they just manage file state */}
-        {/* --- STEP 2: UPLOAD ASSETS --- */}
-        {attestationStatus === 'succeeded' && (
-          <div className="step-card">
-            {/* ... (step header is the same) ... */}
-            <div className="step-header">
-              <div className="step-indicator">2</div>
-              <h3>Upload Your Assets</h3>
-            </div>
-            <div className="upload-columns">
-              <FileUploader title="Data Owner: Upload Data" description="Select your dataset." selectedFile={dataFile} onFileSelect={setDataFile} />
-              <FileUploader title="Developer: Upload Program" description="Select your compiled .wasm program." selectedFile={programFile} onFileSelect={setProgramFile} />
-            </div>
-          </div>
-        )}
-        {/* --- STEP 3: EXECUTE --- */}
-        {dataFile && programFile && (
-          <div className="step-card">
-            {/* ... (step header is the same) ... */}
-            <div className="step-header">
-              <div className="step-indicator">3</div>
-              <h3>Execute Computation</h3>
-            </div>
-            <p>The secure environment has been verified, and both assets are ready.</p>
-            <Button onClick={handleFileUpload}  >
-              Start Secure Computation
-            </Button>
-          </div>
-        )}
-      </Card>
-      <Modal
-        isOpen={isReportModalOpen}
-        onClose={() => setIsReportModalOpen(false)}
-        title="Full Attestation Report"
-      >
-        {attestationReport ? (
-          <pre>
-            <code>
-              {JSON.stringify(attestationReport, null, 2)}
-            </code>
-          </pre>
-        ) : (
-          <p>No report data available.</p>
-        )}
-      </Modal>
-    </div>
-  )
+        <Modal
+          isOpen={isReportModalOpen}
+          onClose={() => setIsReportModalOpen(false)}
+          title="Full Attestation Report"
+        >
+          {attestationReport ? (
+            <pre><code>{JSON.stringify(parsedReport, null, 2)}</code></pre>
+          ) : (
+            <p>No report data available.</p>
+          )}
+        </Modal>
+      </div>
+    </div >
+  );
 }
 
 export default observer(ComputationWizard);

@@ -1,0 +1,96 @@
+@import (reference) '@/styles/theme.less';
+
+.attestation-result {
+  display: flex;
+  flex-direction: column;
+  gap: 24px; // Spacing between header, summary, and link
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+// 1. Primary Status Header
+.result-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  .success-icon {
+    font-size: 28px;
+    color: @success-color;
+  }
+
+  h4 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: @text-color;
+  }
+}
+
+// 2. Data Summary Card
+.report-summary {
+  background-color: darken(@card-bg, 5%); // Inset card background
+  border: 1px solid @border-color;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px; // Spacing between items inside the card
+
+  .summary-title {
+    font-weight: 600;
+    font-size: 15px;
+    color: @text-color;
+    margin-bottom: 4px;
+  }
+
+  .summary-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+
+    .item-label {
+      color: @text-secondary;
+    }
+
+    .item-value code {
+      // color: @text-color-light;
+      // font-family: @code-font;
+      background-color: darken(@card-bg, 5%);
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+  }
+}
+
+// 3. Primary Action Link
+.view-report-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: @primary-color;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  align-self: flex-start; // Don't let it stretch
+
+  &:hover {
+    color: lighten(@primary-color, 10%);
+    text-decoration: underline;
+  }
+}
+
+// A simple fade-in animation for when the component appears
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

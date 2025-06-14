@@ -1,6 +1,7 @@
 import { arrayBufferToBase64, encryptWithAESGCM256 } from "@/utils/crypto";
 import { SecureClient } from "./types/client";
-import { AttestationReport, AttestationResponse, ExecutionPayload } from "@/interface/computation";
+import { AttestationReport, AttestationResponse, ExecutionPayload, ParsedQuote } from "@/interface/computation";
+// import { keysToCamel } from "@/utils/convert";
 
 // This is the URL for the compute backend (TDX VM)
 export const compute_backend_url = 'http://localhost:10086/api/v1';
@@ -41,8 +42,10 @@ export async function startAttestation(client: SecureClient): Promise<Attestatio
   // 1. Call the initial attestation endpoint.
   const response = await client.policyStyxAttestationRequst() as AttestationResponse;
 
+  console.debug("Attestation response received:", response);
+
   // 2. Set the session ID on the cloent.
-  client.setSessionId(response.sessionId);
+  client.setSessionId(response.session_id);
 
   // 3. Deode server's public key and derive shared secret.
   const serverPublicKeyBytes = Uint8Array.from(atob(response.gy), c => c.charCodeAt(0)).buffer;
@@ -57,7 +60,7 @@ export async function startAttestation(client: SecureClient): Promise<Attestatio
   }
 
   return {
-    sessionId: response.sessionId, // UUID
+    sessionId: response.session_id, // UUID
     quote: response.quote, // Base64 encoded quote
   }
 }
@@ -95,4 +98,23 @@ export async function uploadFiles(client: SecureClient, payload: Omit<ExecutionP
   }
 
   console.log("✅ Files uploaded successfully.");
+}
+
+export async function parseQuote(quote: string): Promise<ParsedQuote> {
+  const response = await fetch(`${verify_backend_url}/parse`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ quote }),
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`Quote parsing failed with status ${response.status}:`, errorText);
+    throw new Error(`Server responded with ${response.status}`);
+  }
+  const result = await response.json();
+  return {
+    quote: result.quote, // Assuming the response contains a 'quote' field
+  };
 }

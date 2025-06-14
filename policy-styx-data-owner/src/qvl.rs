@@ -156,7 +156,7 @@ pub fn verify_quote(raw_quote: &[u8]) -> Result<()> {
 
 #[serde_as]
 #[derive(Serialize, Deserialize, Debug)]
-struct PolicyStyxVerifyRequest {
+struct PolicyStyxQuoteRequest {
     #[serde_as(as = "Base64")]
     quote: Vec<u8>, // The quote to be verified.
 }
@@ -166,14 +166,25 @@ struct PolicyStyxVerifyResponse {
     valid: bool, // Whether the quote is valid.
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct QuoteParseResponse {
+    quote: String,
+}
+
 impl IntoResponse for PolicyStyxVerifyResponse {
     fn into_response(self) -> Response {
         (StatusCode::OK, Json(self)).into_response()
     }
 }
 
+impl IntoResponse for QuoteParseResponse {
+    fn into_response(self) -> Response {
+        (StatusCode::OK, Json(self)).into_response()
+    }
+}
+
 async fn verify_quote_request(
-    Json(request): Json<PolicyStyxVerifyRequest>,
+    Json(request): Json<PolicyStyxQuoteRequest>,
 ) -> Result<PolicyStyxVerifyResponse, StatusCode> {
     log::info!("Received quote verification request");
 
@@ -187,6 +198,20 @@ async fn verify_quote_request(
     verify_quote(raw_quote).map_err(|_| StatusCode::BAD_REQUEST)?;
 
     Ok(PolicyStyxVerifyResponse { valid: true })
+}
+
+async fn parse_quote(
+    Json(request): Json<PolicyStyxQuoteRequest>,
+) -> Result<QuoteParseResponse, StatusCode> {
+    let quote = QuoteV4::from_bytes(&request.quote);
+    if quote.header.version < 3 {
+        log::error!("Not a TDX quote!");
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    let quote_str = format!("{:#?}", quote);
+
+    Ok(QuoteParseResponse { quote: quote_str })
 }
 
 pub async fn serve(addr: &str, port: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -203,6 +228,7 @@ pub async fn serve(addr: &str, port: &str) -> Result<(), Box<dyn std::error::Err
 
     let app = Router::new()
         .route("/api/v1/verify", post(verify_quote_request))
+        .route("/api/v1/parse", post(parse_quote))
         .layer(cors);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;

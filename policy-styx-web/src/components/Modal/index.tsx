@@ -1,18 +1,25 @@
-import './index.less';
-
-import React, { FC, useEffect } from 'react';
+import React, { FC, ReactNode, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { XIcon } from '@phosphor-icons/react';
+import classNames from 'classnames';
 import './index.less';
 
-interface ModalProps {
+export interface ModalProps {
+  /** Controls if the modal is visible or not */
   isOpen: boolean;
+  /** Function to call when the user requests to close the modal (e.g., clicks overlay or close button) */
   onClose: () => void;
-  title: string;
-  children: React.ReactNode;
+  /** The title displayed in the modal's header */
+  title: ReactNode;
+  /** The main content of the modal */
+  children: ReactNode;
+  /** Optional content for the footer, typically for action buttons */
+  footer?: ReactNode;
+  /** Optional custom class name for the modal content */
+  className?: string;
 }
 
-const Modal: FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
+const Modal: FC<ModalProps> = ({ isOpen, onClose, title, children, footer, className }) => {
   // Effect to handle closing the modal with the 'Escape' key
   useEffect(() => {
     const handleEsc = (event: KeyboardEvent) => {
@@ -21,25 +28,28 @@ const Modal: FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
       }
     };
     if (isOpen) {
+      document.body.style.overflow = 'hidden'; // Prevent background scrolling
       window.addEventListener('keydown', handleEsc);
     }
     return () => {
+      document.body.style.overflow = 'unset';
       window.removeEventListener('keydown', handleEsc);
     };
   }, [isOpen, onClose]);
 
-  // Don't render anything if the modal is not open
+  // Use a portal to render the modal at the root of the document, avoiding z-index issues.
   if (!isOpen) {
     return null;
   }
 
-  // Use createPortal to render the modal at the root of the document
-  // This avoids z-index issues with complex layouts
   return createPortal(
-    <div className="modal-overlay" role="dialog" aria-modal="true" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay" role="dialog" aria-modal="true" onMouseDown={onClose}>
+      <div
+        className={classNames('modal-content', className)}
+        onMouseDown={(e) => e.stopPropagation()} // Prevent clicks inside modal from closing it
+      >
         <div className="modal-header">
-          <h3>{title}</h3>
+          <h3 className="modal-title">{title}</h3>
           <button className="modal-close-button" onClick={onClose} aria-label="Close modal">
             <XIcon size={20} />
           </button>
@@ -47,9 +57,14 @@ const Modal: FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
         <div className="modal-body">
           {children}
         </div>
+        {footer && (
+          <div className="modal-footer">
+            {footer}
+          </div>
+        )}
       </div>
     </div>,
-    document.body // The target DOM node to render into
+    document.body
   );
 };
 
