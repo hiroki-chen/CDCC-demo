@@ -1,7 +1,7 @@
-import React, {ReactNode, useState} from 'react';
-import {useNavigate, Outlet, useLocation} from 'react-router';
+import React, { ReactNode, useState } from 'react';
+import { useNavigate, Outlet, useLocation } from 'react-router';
 import CX from 'classnames';
-import {observer} from 'mobx-react-lite';
+import { observer } from 'mobx-react-lite';
 import {
     IconContext,
     GlobeHemisphereEast,
@@ -11,9 +11,10 @@ import {
     InstagramLogo,
     FileTsx,
     GithubLogo,
-    GameController
+    GameController,
+    CommandIcon
 } from '@phosphor-icons/react';
-import {Button} from '@/components';
+import { Button } from '@/components';
 
 import './index.less';
 
@@ -26,19 +27,20 @@ interface LinkItem {
 function Home() {
     const navigate = useNavigate();
     const params = useLocation();
-    const {pathname} = params;
+    const { pathname } = params;
     console.log('🚀 ~ file: index.tsx:7 ~ Tab ~ navigate:', pathname);
 
     const [activeLink, setActiveLink] = useState<string>(pathname);
 
     const MenuLink = [
-        {name: 'Data Owner', icon: <GlobeHemisphereEast />, link: '/home/one'},
-        {name: 'Developer', icon: <GameController />, link: '/home/two'},
-        {name: 'HomeThree', icon: <FileTsx />, link: '/home/three'},
-        {name: 'Mobx 数据更新', icon: <HardDrives />, link: '/home/mobx'},
-        {name: 'Phosphor 图标库', icon: <InstagramLogo />, link: '/home/four'},
-        {name: 'Svg 封装', icon: <IceCream />, link: '/home/icon'},
-        {name: '订单查询', icon: <Keyboard />, link: '/home/order'}
+        { name: 'New Computation', icon: <CommandIcon />, link: '/home/new-computation' },
+        { name: 'Data Owner', icon: <GlobeHemisphereEast />, link: '/home/one' },
+        { name: 'Developer', icon: <GameController />, link: '/home/two' },
+        { name: 'HomeThree', icon: <FileTsx />, link: '/home/three' },
+        { name: 'Mobx 数据更新', icon: <HardDrives />, link: '/home/mobx' },
+        { name: 'Phosphor 图标库', icon: <InstagramLogo />, link: '/home/four' },
+        { name: 'Svg 封装', icon: <IceCream />, link: '/home/icon' },
+        { name: '订单查询', icon: <Keyboard />, link: '/home/order' }
     ];
 
     const handleClickLink = (link: string) => {

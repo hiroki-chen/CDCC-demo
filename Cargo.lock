@@ -4344,6 +4344,7 @@ dependencies = [
  "sudo",
  "tokio",
  "tower-http",
+ "uuid",
 ]
 
 [[package]]

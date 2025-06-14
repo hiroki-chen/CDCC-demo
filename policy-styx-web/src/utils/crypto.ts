@@ -34,6 +34,16 @@ export async function deriveSharedSecret(privateKey: CryptoKey, publicKey: Array
   );
 }
 
+// Helper function (must be available)
+export function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return window.btoa(binary);
+}
+
 export async function encryptWithAESGCM256(key: ArrayBuffer, data: ArrayBuffer) {
   const iv = crypto.getRandomValues(new Uint8Array(12)); // 96-bit IV for AES-GCM
   const encryptedData = await crypto.subtle.encrypt(

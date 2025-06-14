@@ -73,6 +73,7 @@
         "@types/noble": "^0.0.44",
         "@types/react": "^19.1.6",
         "@types/react-dom": "^19.1.5",
+        "@types/uuid": "^10.0.0",
         "@types/webpack-env": "^1.18.3",
         "@typescript-eslint/eslint-plugin": "^8.33.0",
         "@typescript-eslint/parser": "^8.33.0",
@@ -137,7 +138,8 @@
         "pnpm": "^10.12.1",
         "react": "^19.1.0",
         "react-dom": "^19.1.0",
-        "react-router": "^7.6.1"
+        "react-router": "^7.6.1",
+        "uuid": "^11.1.0"
     },
     "volta": {
         "node": "22.12.0",

@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use axum::extract::State;
@@ -17,6 +16,7 @@ use serde_with::base64::Base64;
 use serde_with::serde_as;
 use tokio::sync::Mutex;
 use tower_http::cors::{self, AllowOrigin, CorsLayer};
+use uuid::Uuid;
 
 #[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -33,14 +33,16 @@ struct PolicyStyxAttestationResponse {
     gy: Vec<u8>, // The server's public key.
     #[serde_as(as = "Base64")]
     quote: Vec<u8>, // The attestation report.
-    quote_type: u32,   // The type of the quote.
-    session_id: usize, // The session ID.
+    quote_type: u32, // The type of the quote.
+    #[serde_as(as = "Base64")]
+    session_id: Uuid, // The session ID.
 }
 
 #[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct PolicyStyxUploadRequest {
-    session_id: usize, // The session ID for the upload.
+    #[serde_as(as = "Base64")]
+    session_id: Uuid, // The session ID for the upload.
     #[serde_as(as = "Base64")]
     data: Vec<u8>, // The data to be uploaded.
 }
@@ -60,25 +62,14 @@ impl IntoResponse for PolicyStyxUploadResponse {
     }
 }
 
-fn get_next_session_id(sessions: &HashMap<usize, Session>) -> usize {
-    const COUNTER: AtomicUsize = AtomicUsize::new(0);
-
-    // Generate a new session ID that is unique.
-    let mut session_id = COUNTER.fetch_add(1, Ordering::SeqCst);
-    while sessions.contains_key(&session_id) {
-        session_id = COUNTER.fetch_add(1, Ordering::SeqCst);
-    }
-    session_id
-}
-
 /// A simple session.
 #[derive(Debug, Default)]
 pub struct Session {
-    id: usize,
+    id: Uuid,
     key: Vec<u8>,
 }
 
-type Sessions = Arc<Mutex<HashMap<usize, Session>>>;
+type Sessions = Arc<Mutex<HashMap<Uuid, Session>>>;
 
 async fn policy_styx_remote_attestation(
     State(sessions): State<Sessions>,
@@ -100,7 +91,7 @@ async fn policy_styx_remote_attestation(
     let gy = server_private_key.public_key().to_sec1_bytes().to_vec();
 
     let mut sessions = sessions.lock().await;
-    let session_id = get_next_session_id(&sessions);
+    let session_id = Uuid::new_v4();
 
     sessions.insert(
         session_id,

@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import { Button, Card } from '@/components';
 import './index.less';
-import { SecureClient } from '@/biz/handlers';
+import { SecureClient } from '@/api/cc/types/client';
+import { verifyQuote } from '@/api/cc';
 
 async function attestationButton(client: SecureClient) {
     console.log("Attestation button clicked, client:", client);
@@ -22,7 +23,7 @@ async function attestationButton(client: SecureClient) {
         console.log("Converted report to ArrayBuffer, size:", reportBuffer.byteLength);
 
         // Now we verify the quote.
-        const isValid = await client.verifyQuote(reportBuffer);
+        const isValid = await verifyQuote(reportBuffer);
         if (!isValid) {
             throw new Error("Quote verification failed.");
         }
@@ -41,7 +42,7 @@ async function attestationButton(client: SecureClient) {
 
         // Derive the shared secret using the received gy
         await client.deriveSharedSecret(gyBuffer);
-        console.log("✅ Shared secret derived successfully: ", client.session_key);
+        console.log("✅ Shared secret derived successfully: ", client.sessionKey);
     } catch (error) {
         console.error("🔥 Error during attestation request:", error);
     }
@@ -75,7 +76,7 @@ const HomeOne = () => {
     return (
         <div className='home-one-root'>
             <Card>
-                <h2> Initialize Attestation</h2>
+                <h2>Create a New Secure Computation Job</h2>
                 <p>
                     This page is designed to initialize the attestation process for a data owner.
                     It provides a user-friendly interface to set up and manage attestation settings.

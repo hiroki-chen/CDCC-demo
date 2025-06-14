@@ -4,7 +4,7 @@
  */
 import React from 'react';
 import SuspenseLazy from '@/components/SuspenseLazy';
-import {Navigate, RouteObject} from 'react-router';
+import { Navigate, RouteObject } from 'react-router';
 
 const Home = SuspenseLazy(() => import(/* webpackChunkName:"home" */ '@/view/Home'));
 const HomeOne = SuspenseLazy(() => import(/* webpackChunkName:"home-one" */ '@/view/Home/HomeOne'));
@@ -17,17 +17,22 @@ const HomeOrder = SuspenseLazy(() => import(/* webpackChunkName:"home-order" */ 
 const Dashboard = SuspenseLazy(() => import(/* webpackChunkName:"dashboard" */ '@/view/Dashboard'));
 const About = SuspenseLazy(() => import(/* webpackChunkName:"about" */ '@/view/About'));
 const NotFound = SuspenseLazy(() => import(/* webpackChunkName:"not-found" */ '@/view/NotFound'));
+const NewComputation = SuspenseLazy(() => import(/* webpackChunkName:"new-computation" */ '@/view/NewComputation'));
 
 const routes: RouteObject[] = [
     {
         path: '/',
-        element: <Navigate to='home/one' /> // 重定向
+        element: <Navigate to='home/new-computation' /> // 重定向
     },
     {
         path: 'home',
         element: Home,
         children: [
             // 嵌套路由
+            {
+                path: 'new-computation',
+                element: NewComputation
+            },
             {
                 path: 'one',
                 element: HomeOne

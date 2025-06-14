@@ -1,0 +1,116 @@
+// // Assumes you have a global variables file for colors and fonts.
+// // Example: @import '@/styles/variables.less';
+// @import (reference) '@/styles/theme.less';
+
+// If you don't have a variables file, you can define them here for now:
+@primary-color: #fca311;
+@card-bg: #2d3748;
+@border-color: #4a5568;
+@text-color: #e2e8f0;
+@text-secondary: #a0aec0;
+@success-color: #48bb78;
+
+.upload-column-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.upload-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+  color: @text-color;
+
+  h3 {
+    margin: 0;
+    font-size: 16px;
+  }
+}
+
+.upload-description {
+  color: @text-secondary;
+  font-size: 14px;
+  min-height: 40px; // Prevents layout shifts
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
+.file-uploader-box {
+  border: 2px dashed @border-color;
+  border-radius: 8px;
+  padding: 32px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  background-color: transparent;
+
+  &:hover,
+  &.drag-over {
+    border-color: @primary-color;
+    background-color: fade(@primary-color, 5%);
+  }
+
+  p {
+    margin: 0 0 4px 0;
+    font-weight: 500;
+    color: @text-color;
+    font-size: 16px;
+    pointer-events: none; // Ensures click goes to parent
+  }
+
+  span {
+    color: @text-secondary;
+    font-size: 12px;
+    pointer-events: none; // Ensures click goes to parent
+  }
+}
+
+.file-info-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid @border-color;
+  background-color: @card-bg;
+  animation: fadeIn 0.3s ease;
+
+  .file-info-text {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; // Important for text truncation
+
+    strong {
+      font-size: 14px;
+      color: @text-color;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis; // Truncate long filenames
+    }
+
+    span {
+      font-size: 12px;
+      color: @text-secondary;
+    }
+  }
+
+  .file-ready-icon {
+    color: @success-color;
+    flex-shrink: 0;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
