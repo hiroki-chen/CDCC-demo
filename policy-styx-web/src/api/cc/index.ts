@@ -45,7 +45,7 @@ export async function startAttestation(client: SecureClient): Promise<Attestatio
   console.debug("Attestation response received:", response);
 
   // 2. Set the session ID on the cloent.
-  client.setSessionId(response.session_id);
+  client.setSessionId(response.sessionId);
 
   // 3. Deode server's public key and derive shared secret.
   const serverPublicKeyBytes = Uint8Array.from(atob(response.gy), c => c.charCodeAt(0)).buffer;
@@ -60,7 +60,7 @@ export async function startAttestation(client: SecureClient): Promise<Attestatio
   }
 
   return {
-    sessionId: response.session_id, // UUID
+    sessionId: response.sessionId, // UUID
     quote: response.quote, // Base64 encoded quote
   }
 }
@@ -87,6 +87,9 @@ export async function uploadFiles(client: SecureClient, payload: ExecutionPayloa
   // 4. Send the request to the compute backend.
   const response = await fetch(`${compute_backend_url}/upload`, {
     method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded', // FormData will set this automatically
+    },
     body: formData,
   });
 

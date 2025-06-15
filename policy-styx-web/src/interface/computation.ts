@@ -3,7 +3,7 @@
  */
 export interface AttestationResponse {
   gy: string, //  Base64 encoded ArrayBuffer
-  session_id: string, // UUID
+  sessionId: string, // UUID
   quote: string, // The full attestation quote, base64 encoded.
   quote_type: string, // The type of quote.
 }

@@ -20,6 +20,7 @@ use uuid::Uuid;
 
 #[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 struct PolicyStyxAttestationRequest {
     // base64.
     #[serde_as(as = "Base64")]
@@ -28,6 +29,7 @@ struct PolicyStyxAttestationRequest {
 
 #[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 struct PolicyStyxAttestationResponse {
     #[serde_as(as = "Base64")]
     gy: Vec<u8>, // The server's public key.
@@ -40,6 +42,7 @@ struct PolicyStyxAttestationResponse {
 
 #[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 struct PolicyStyxUploadRequest {
     #[serde_as(as = "Base64")]
     session_id: Uuid, // The session ID for the upload.
