@@ -11,13 +11,15 @@ import FileUploader from "@/components/FileUploader";
 import Modal from "@/components/Modal";
 // import { RocketLaunchIcon } from "@phosphor-icons/react";
 import './index.less';
-import AttestationResult from "@/components/AttestationResult";
+import AttestationResult from "@/components/Result";
 
 const ComputationWizard = () => {
   const [client] = useState(() => new SecureClient());
   const [, setIsClientReady] = useState(false);
 
   const [attestationStatus, setAttestationStatus] = useState<'idle' | 'pending' | 'succeeded'>('idle');
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'pending' | 'succeeded'>('idle');
+
   const [attestationReport, setAttestationReport] = useState<AttestationReport | null>(null);
   const [parsedReport, setParsedReport] = useState<string | null>(null);
   const [dataFile, setDataFile] = useState<File | null>(null);
@@ -63,6 +65,9 @@ const ComputationWizard = () => {
       return; // do nothing.
     }
 
+    // Set status to pending to show a loading state
+    setUploadStatus('pending');
+
     // Pack the files and session info into a payload.
     const payload = {
       dataFile: dataFile,
@@ -79,8 +84,13 @@ const ComputationWizard = () => {
       setIsFileUploadModalOpen(true);
       setFileUploadModalContent(`File upload failed with status ${response.status}: ${errorText}`);
 
+      setUploadStatus('idle');
+
       return;
     }
+
+    console.log("✅ File upload succeeded:", response);
+    setUploadStatus('succeeded');
   };
 
   const handleStartComputation = async () => {
@@ -140,6 +150,7 @@ const ComputationWizard = () => {
               )}
               {attestationStatus === 'succeeded' && attestationReport && (<AttestationResult
                 // status={attestationStatus}
+                title="Environment Verified"
                 report={attestationReport!}
                 onViewReport={() => setIsReportModalOpen(true)}
               />)}
@@ -152,7 +163,7 @@ const ComputationWizard = () => {
               <span className="step-number">2</span>
               <h2 className="step-title">Upload & Execute</h2>
             </div>
-            <div className="step-content">
+            {uploadStatus !== 'succeeded' && <div className="step-content">
               <p>Once the environment is trusted, upload your assets to begin the computation.</p>
               <div className="upload-columns">
                 <FileUploader
@@ -168,12 +179,37 @@ const ComputationWizard = () => {
                   onFileSelect={setProgramFile}
                 />
               </div>
+
               {dataFile && programFile && (
-                <Button onClick={handleFileUpload} className="execute-button">
-                  Upload
-                </Button>
+                <div className="upload-action-container">
+
+                  {/* State 1: Ready to upload */}
+                  {uploadStatus === 'idle' && (
+                    <Button onClick={handleFileUpload} className="execute-button">
+                      Upload Files
+                    </Button>
+                  )}
+
+                  {/* State 2: Uploading in progress */}
+                  {uploadStatus === 'pending' && (
+                    <Button disabled className="execute-button">
+                      Uploading...
+                    </Button>
+                  )}
+
+                </div>
               )}
-            </div>
+
+            </div>}
+
+            {uploadStatus === 'succeeded' &&
+              <div className="step-content">
+                <AttestationResult
+                  title="Files Uploaded Successfully"
+                  onViewReport={() => { }}
+                />
+              </div>
+            }
           </div>
           <div className={`wizard-column step-column ${!dataFile || !programFile ? 'is-disabled' : ''}`}>
             <div className="step-header">

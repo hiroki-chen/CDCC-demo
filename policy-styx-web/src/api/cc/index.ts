@@ -80,9 +80,9 @@ export async function uploadFiles(client: SecureClient, payload: ExecutionPayloa
 
   // 3. Use FormData to send the encrypted data and program file.
   const formData = new FormData();
+  formData.append('sessionId', payload.sessionId);
   formData.append('encryptedDataFile', encryptedDataFile, 'encrypted_data.enc');
   formData.append('programFile', payload.programFile);
-  formData.append('sessionId', payload.sessionId);
 
   // 4. Send the request to the compute backend.
   const response = await fetch(`${compute_backend_url}/upload`, {

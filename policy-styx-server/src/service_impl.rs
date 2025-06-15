@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fs;
 use std::sync::Arc;
 
 use axum::extract::{Multipart, State};
@@ -35,7 +36,7 @@ struct PolicyStyxAttestationResponse {
     gy: Vec<u8>, // The server's public key.
     #[serde_as(as = "Base64")]
     quote: Vec<u8>, // The attestation report.
-    quote_type: u32, // The type of the quote.
+    quote_type: u32,  // The type of the quote.
     session_id: Uuid, // The session ID.
 }
 
@@ -136,11 +137,29 @@ async fn policy_styx_upload(
     if let Some(session) = sessions.get(&session_id) {
         // Here you would handle the upload using the session key.
         // For now, we just log it.
-        log::info!(
-            "Received upload for session {} with key: {:?}",
-            session.id,
-            session.key
-        );
+        log::info!("Received upload for session {}", session.id);
+
+        let data = request
+            .next_field()
+            .await
+            .map_err(|_| StatusCode::BAD_REQUEST)?
+            .ok_or(StatusCode::BAD_REQUEST)?
+            .bytes()
+            .await
+            .map_err(|_| StatusCode::BAD_REQUEST)?;
+        let program = request
+            .next_field()
+            .await
+            .map_err(|_| StatusCode::BAD_REQUEST)?
+            .ok_or(StatusCode::BAD_REQUEST)?
+            .bytes()
+            .await
+            .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+        fs::write("./data/data-{session_id:?}", &data)
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        fs::write("./data/program-{session_id:?}", &program)
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         Ok(PolicyStyxUploadResponse {})
     } else {
