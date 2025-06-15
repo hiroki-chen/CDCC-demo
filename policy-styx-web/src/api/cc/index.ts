@@ -87,9 +87,6 @@ export async function uploadFiles(client: SecureClient, payload: ExecutionPayloa
   // 4. Send the request to the compute backend.
   const response = await fetch(`${compute_backend_url}/upload`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded', // FormData will set this automatically
-    },
     body: formData,
   });
 

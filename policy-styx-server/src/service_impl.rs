@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use axum::extract::State;
+use axum::extract::{Multipart, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
-use axum::{Form, Json, Router};
+use axum::{Json, Router};
 use p256::ecdh::EphemeralSecret;
 use p256::elliptic_curve::rand_core::OsRng;
 use p256::PublicKey;
@@ -36,7 +36,6 @@ struct PolicyStyxAttestationResponse {
     #[serde_as(as = "Base64")]
     quote: Vec<u8>, // The attestation report.
     quote_type: u32, // The type of the quote.
-    #[serde_as(as = "Base64")]
     session_id: Uuid, // The session ID.
 }
 
@@ -44,7 +43,6 @@ struct PolicyStyxAttestationResponse {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 struct PolicyStyxUploadRequest {
-    #[serde_as(as = "Base64")]
     session_id: Uuid, // The session ID for the upload.
     #[serde_as(as = "Base64")]
     data: Vec<u8>, // The data to be uploaded.
@@ -117,9 +115,22 @@ async fn policy_styx_remote_attestation(
 
 async fn policy_styx_upload(
     State(sessions): State<Sessions>,
-    Form(request): Form<PolicyStyxUploadRequest>,
+    mut request: Multipart,
 ) -> Result<PolicyStyxUploadResponse, StatusCode> {
-    let session_id = request.session_id;
+    let session_id = request
+        .next_field()
+        .await
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
+    let session_id = match session_id {
+        Some(field) => field.text().await.map_err(|_| StatusCode::BAD_REQUEST)?,
+        None => return Err(StatusCode::BAD_REQUEST),
+    };
+
+    // Decode session as base64 into a UUID.
+    let session_id = match Uuid::parse_str(&session_id) {
+        Ok(id) => id,
+        Err(_) => return Err(StatusCode::BAD_REQUEST),
+    };
 
     let sessions = sessions.lock().await;
     if let Some(session) = sessions.get(&session_id) {
