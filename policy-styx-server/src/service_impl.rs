@@ -5,7 +5,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
-use axum::{Json, Router};
+use axum::{Form, Json, Router};
 use p256::ecdh::EphemeralSecret;
 use p256::elliptic_curve::rand_core::OsRng;
 use p256::PublicKey;
@@ -114,7 +114,7 @@ async fn policy_styx_remote_attestation(
 
 async fn policy_styx_upload(
     State(sessions): State<Sessions>,
-    Json(request): Json<PolicyStyxUploadRequest>,
+    Form(request): Form<PolicyStyxUploadRequest>,
 ) -> Result<PolicyStyxUploadResponse, StatusCode> {
     let session_id = request.session_id;
 

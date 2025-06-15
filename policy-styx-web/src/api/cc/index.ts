@@ -70,14 +70,13 @@ export async function startAttestation(client: SecureClient): Promise<Attestatio
  * @param client - The SecureClient instance holding the session key.
  * @param payload - The files and session info.
  */
-export async function uploadFiles(client: SecureClient, payload: Omit<ExecutionPayload, 'encryptedDataFile'> & { dataFile: File; }): Promise<void> {
+export async function uploadFiles(client: SecureClient, payload: ExecutionPayload): Promise<Response> {
   // 1. Read the user's data file into an ArrayBuffer.
   const dataBuffer = await payload.dataFile.arrayBuffer();
 
   // 2. Encrypt the data using the derived session key.
   const encryptedDataBuffer = await encryptWithAESGCM256(client.sessionKey, dataBuffer);
-  const encryptedDataFile = new Blob([encryptedDataBuffer.encryptedData], { type: 'application/octet-stream' });
-
+  const encryptedDataFile = new Blob([encryptedDataBuffer.encryptedData, encryptedDataBuffer.iv], { type: 'application/octet-stream' });
 
   // 3. Use FormData to send the encrypted data and program file.
   const formData = new FormData();
@@ -91,13 +90,7 @@ export async function uploadFiles(client: SecureClient, payload: Omit<ExecutionP
     body: formData,
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`Upload failed with status ${response.status}:`, errorText);
-    throw new Error(`Server responded with ${response.status}`);
-  }
-
-  console.log("✅ Files uploaded successfully.");
+  return response;
 }
 
 export async function parseQuote(quote: string): Promise<ParsedQuote> {

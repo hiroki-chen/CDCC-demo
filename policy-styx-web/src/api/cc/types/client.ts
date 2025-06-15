@@ -1,5 +1,4 @@
 import { arrayBufferToBase64, deriveSharedSecret, generateECDHKeypair } from "@/utils/crypto";
-import { UUIDTypes } from "uuid";
 
 // Define a type for clarity
 export interface KeyPair {
@@ -12,7 +11,7 @@ export class SecureClient {
 
   sessionKey!: ArrayBuffer;
 
-  sessionId!: UUIDTypes;
+  sessionId!: string;
 
   constructor() {
     // DO NOT call async functions in the constructor without handling the promise.
@@ -67,7 +66,7 @@ export class SecureClient {
 
 
   setSessionId(sessionId: string) {
-    this.sessionId = sessionId as UUIDTypes;
+    this.sessionId = sessionId;
     console.log("✅ Session ID set successfully.");
   }
 

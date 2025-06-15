@@ -24,6 +24,8 @@ const ComputationWizard = () => {
   const [programFile, setProgramFile] = useState<File | null>(null);
 
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isFileUploadModalOpen, setIsFileUploadModalOpen] = useState(false);
+  const [fileUploadModalContent, setFileUploadModalContent] = useState<string | null>(null);
 
   const [computationStatus, setComputationStatus] = useState<'idle' | 'pending' | 'succeeded'>('idle');
   const [computationResult, setComputationResult] = useState<Blob | null>(null);
@@ -63,12 +65,22 @@ const ComputationWizard = () => {
 
     // Pack the files and session info into a payload.
     const payload = {
-      // encryptedDataFile: dataFile,
+      dataFile: dataFile,
       programFile: programFile,
-      sessionId: attestationReport.sessionId,
+      sessionId: client.sessionId,
     }
 
     const response = await uploadFiles(client, payload);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`File upload failed with status ${response.status}:`, errorText);
+
+      setIsFileUploadModalOpen(true);
+      setFileUploadModalContent(`File upload failed with status ${response.status}: ${errorText}`);
+
+      return;
+    }
   };
 
   const handleStartComputation = async () => {
@@ -210,6 +222,14 @@ const ComputationWizard = () => {
           ) : (
             <p>No report data available.</p>
           )}
+        </Modal>
+
+        <Modal
+          isOpen={isFileUploadModalOpen}
+          onClose={() => setIsFileUploadModalOpen(false)}
+          title="File Upload Status"
+        >
+          <pre><code>{fileUploadModalContent!}</code></pre>
         </Modal>
       </div>
     </div >
