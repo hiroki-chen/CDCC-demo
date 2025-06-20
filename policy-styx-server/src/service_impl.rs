@@ -14,8 +14,7 @@ use p256::PublicKey;
 use policy_styx_lib::app::{PcdWasmRuntime, Session};
 #[cfg(all(not(feature = "mock"), feature = "platform-tdx"))]
 use policy_styx_lib::attestation;
-use policy_styx_lib::data::PcdEncData;
-use policy_styx_lib::dataset;
+use policy_styx_lib::proxy;
 use serde::{Deserialize, Serialize};
 use serde_with::base64::Base64;
 use serde_with::serde_as;
@@ -89,20 +88,20 @@ impl IntoResponse for PolicyStyxUploadResponse {
 }
 
 pub struct ServerState {
-    rt: PcdWasmRuntime<wasi_common::WasiCtx>,
+    rt: PcdWasmRuntime,
 }
 
 impl Deref for ServerState {
     type Target = HashMap<Uuid, Session>;
 
     fn deref(&self) -> &Self::Target {
-        &self.rt.sessions
+        &self.rt.store.data().sessions
     }
 }
 
 impl DerefMut for ServerState {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.rt.sessions
+        &mut self.rt.store.data_mut().sessions
     }
 }
 
@@ -112,20 +111,15 @@ impl ServerState {
     /// Since WASM modules cannot directly access the host environment, we need to register
     /// the functions that allow the WASM module to access the PCD dataset. Upon module
     /// instantiation, the host bridge functions will be imported.
-    fn register_host_bridge_functions(
-        runtime: &mut PcdWasmRuntime<wasi_common::WasiCtx>,
-    ) -> Result<(), StatusCode> {
-        // TODO: These functions would require a handle to the runtime.
-
-        // runtime
-        //     .register_native_functions("pcd_data_access", dataset::pcd_dataset_access)
-        //     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        // runtime
-        //     .register_native_functions("pcd_data_release", dataset::pcd_dataset_release)
-        //     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        // runtime
-        //     .register_native_functions("pcd_dataset_add_data", dataset::pcd_dataset_add_data)
-        //     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    fn register_host_bridge_functions(runtime: &mut PcdWasmRuntime) -> Result<(), StatusCode> {
+        // Register the host bridge functions for the PCD dataset.
+        // These functions will be called by the WASM module to access the PCD dataset.
+        runtime
+            .register_native_functions("pcd_data_access", proxy::pcd_dataset_data_access_host)
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        runtime
+            .register_native_functions("pcd_data_release", proxy::pcd_dataset_data_release_host)
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         Ok(())
     }

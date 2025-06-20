@@ -6,6 +6,8 @@ pub mod data;
 
 #[cfg(feature = "runtime")]
 pub mod dataset;
+#[cfg(feature = "runtime")]
+pub mod proxy;
 
 pub mod policy;
 

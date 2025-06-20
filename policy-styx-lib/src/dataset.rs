@@ -16,18 +16,7 @@ pub struct PcdDataset {
     pub payload_ptr: PcdPayload,
 }
 
-impl<T> PcdWasmRuntime<T> {
-    #[inline]
-    pub fn pcd_dataset_access(&self, uuid: &Uuid) -> Result<&PcdDataset> {
-        // TODO: Call the policy engine to perform the check over the dataset.
-        todo!()
-    }
-
-    #[inline]
-    pub fn pcd_dataset_release(&mut self, uuid: &Uuid) -> Result<()> {
-        Ok(())
-    }
-
+impl PcdWasmRuntime {
     /// Add a new data to the dataset.
     ///
     /// # Note
@@ -42,6 +31,8 @@ impl<T> PcdWasmRuntime<T> {
         input_data: PcdEncData,
     ) -> Result<Uuid> {
         let session = self
+            .store
+            .data()
             .sessions
             .get(session_id)
             .ok_or_else(|| anyhow::anyhow!("Session not found"))?;

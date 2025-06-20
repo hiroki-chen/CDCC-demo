@@ -55,7 +55,7 @@ pub unsafe extern "C" fn deallocate(ptr: *mut u8, size: usize) {
 
 // ------------- Policy Engine APIs ------------- //
 #[no_mangle]
-pub unsafe extern "C" fn eval_input(
+pub unsafe extern "C" fn pcd_eval_input(
     data: *const u8,
     data_len: u32,
     key: *const u8,
@@ -65,7 +65,7 @@ pub unsafe extern "C" fn eval_input(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn eval_output(
+pub unsafe extern "C" fn pcd_eval_output(
     data: *const u8,
     data_len: u32,
     key: *const u8,

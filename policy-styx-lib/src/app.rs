@@ -4,9 +4,8 @@ use std::fs;
 
 use anyhow::anyhow;
 use uuid::Uuid;
-use wasi_common::snapshots::preview_0::wasi_unstable::WasiUnstable;
-use wasi_common::snapshots::preview_1::wasi_snapshot_preview1::WasiSnapshotPreview1;
 use wasi_common::sync::add_to_linker;
+use wasi_common::WasiCtx;
 pub use wasmtime::{Engine, Func, IntoFunc, Linker, Memory, Result, Store, Val};
 use wasmtime::{WasmParams, WasmResults};
 
@@ -21,16 +20,19 @@ pub struct Session {
     pub key: Vec<u8>,
 }
 
+pub struct PcdRuntimeState {
+    pub wasi: WasiCtx,
+    pub sessions: HashMap<Uuid, Session>,
+}
+
 /// The WASM runtime structure.
-pub struct PcdWasmRuntime<T> {
-    pub(crate) linker: Linker<T>,
-    pub(crate) store: Store<T>,
+pub struct PcdWasmRuntime {
+    pub(crate) linker: Linker<PcdRuntimeState>,
     /// The application registry.
     pub(crate) app_registry: Vec<PcdApp>,
     /// Special: the policy engine.
     pub(crate) policy_engine: Option<PcdApp>,
-    /// The sessions registry.
-    pub sessions: HashMap<Uuid, Session>,
+    pub store: Store<PcdRuntimeState>,
 }
 
 /// The application structure.
@@ -45,10 +47,7 @@ pub struct PcdApp {
     pub(crate) hash: Vec<u8>,
 }
 
-impl<T> PcdWasmRuntime<T>
-where
-    T: Send + WasiUnstable + WasiSnapshotPreview1,
-{
+impl PcdWasmRuntime {
     #[inline]
     pub fn as_mut_ptr(&mut self) -> *mut c_void {
         self as *mut Self as *mut c_void
@@ -79,19 +78,22 @@ where
     /// # Arguments
     ///
     /// * `data` - The data to be stored in the runtime.
-    pub fn new(data: T) -> Result<Self> {
+    pub fn new(wasi_ctx: WasiCtx) -> Result<Self> {
+        let data = PcdRuntimeState {
+            wasi: wasi_ctx,
+            sessions: HashMap::new(),
+        };
         let engine = Engine::default();
         let store = Store::new(&engine, data);
         let mut linker = Linker::new(&engine);
 
-        add_to_linker(&mut linker, |s| s)?;
+        add_to_linker(&mut linker, |s: &mut PcdRuntimeState| &mut s.wasi)?;
 
         Ok(Self {
             linker,
             store,
             app_registry: Vec::new(),
             policy_engine: None,
-            sessions: HashMap::new(),
         })
     }
 
@@ -108,7 +110,7 @@ where
     pub fn register_native_functions<Params, Results>(
         &mut self,
         name: &str,
-        func: impl IntoFunc<T, Params, Results>,
+        func: impl IntoFunc<PcdRuntimeState, Params, Results>,
     ) -> Result<()> {
         let func = Func::wrap(&mut self.store, func);
         self.linker.define(&mut self.store, "env", name, func)?;
@@ -175,7 +177,6 @@ where
 
         Ok(app)
     }
-
 }
 
 impl PcdApp {
