@@ -7,11 +7,19 @@ use uuid::Uuid;
 use wasi_common::snapshots::preview_0::wasi_unstable::WasiUnstable;
 use wasi_common::snapshots::preview_1::wasi_snapshot_preview1::WasiSnapshotPreview1;
 use wasi_common::sync::add_to_linker;
-use wasmtime::{Engine, Func, IntoFunc, Linker, Memory, Result, Store, Val};
+pub use wasmtime::{Engine, Func, IntoFunc, Linker, Memory, Result, Store, Val};
+use wasmtime::{WasmParams, WasmResults};
 
 use crate::crypto::pcd_crypto_backend_sha256_hash_buffer;
-use crate::dataset::PcdDataset;
 use crate::types::{PcdInstance, PcdModule};
+
+/// A simple session.
+#[derive(Debug, Default)]
+pub struct Session {
+    pub id: Uuid,
+    pub app_idx: Option<usize>, // The index of the application in the PCD WASM runtime.
+    pub key: Vec<u8>,
+}
 
 /// The WASM runtime structure.
 pub struct PcdWasmRuntime<T> {
@@ -19,19 +27,21 @@ pub struct PcdWasmRuntime<T> {
     pub(crate) store: Store<T>,
     /// The application registry.
     pub(crate) app_registry: Vec<PcdApp>,
-    /// The PCD dataset registry.
-    pub(crate) data_registry: HashMap<Uuid, PcdDataset>,
     /// Special: the policy engine.
     pub(crate) policy_engine: Option<PcdApp>,
+    /// The sessions registry.
+    pub sessions: HashMap<Uuid, Session>,
 }
 
 /// The application structure.
 pub struct PcdApp {
     /// The application module.
+    #[allow(dead_code)]
     pub(crate) module: PcdModule,
     /// The application instance.
     pub(crate) instance: PcdInstance,
     /// The application hash.
+    #[allow(dead_code)]
     pub(crate) hash: Vec<u8>,
 }
 
@@ -80,8 +90,8 @@ where
             linker,
             store,
             app_registry: Vec::new(),
-            data_registry: HashMap::new(),
             policy_engine: None,
+            sessions: HashMap::new(),
         })
     }
 
@@ -121,6 +131,24 @@ where
         Ok(idx)
     }
 
+    pub fn execute_typed_function<P, R>(
+        &mut self,
+        idx: usize,
+        func_name: &str,
+        params: P,
+    ) -> Result<R>
+    where
+        P: WasmParams,
+        R: WasmResults,
+    {
+        let app = self.app_registry.get(idx).ok_or(anyhow!("App not found"))?;
+        let func = app
+            .instance
+            .get_typed_func::<P, R>(&mut self.store, func_name)?;
+
+        func.call(&mut self.store, params)
+    }
+
     pub fn execute_function(
         &mut self,
         idx: usize,
@@ -147,6 +175,7 @@ where
 
         Ok(app)
     }
+
 }
 
 impl PcdApp {

@@ -1,9 +1,11 @@
 use uuid::Uuid;
+#[cfg(feature = "runtime")]
 use wasmtime::{Instance, Module};
 
 pub type PcdResult<T> = anyhow::Result<T>;
 pub type PcdIdentity = Uuid;
+
+#[cfg(feature = "runtime")]
 pub type PcdModule = Module;
+#[cfg(feature = "runtime")]
 pub type PcdInstance = Instance;
-/// The offset to the shared runtime memory with the host.
-pub type PcdRuntimeOffset = isize;

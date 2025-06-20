@@ -24,6 +24,7 @@ const ComputationWizard = () => {
   const [parsedReport, setParsedReport] = useState<string | null>(null);
   const [dataFile, setDataFile] = useState<File | null>(null);
   const [programFile, setProgramFile] = useState<File | null>(null);
+  const [policyEngine, setPolicyEngine] = useState<File | null>(null);
 
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isFileUploadModalOpen, setIsFileUploadModalOpen] = useState(false);
@@ -61,7 +62,7 @@ const ComputationWizard = () => {
   };
 
   const handleFileUpload = async () => {
-    if (!dataFile || !programFile || !attestationReport) {
+    if (!dataFile || !programFile || !policyEngine || !attestationReport) {
       return; // do nothing.
     }
 
@@ -72,6 +73,7 @@ const ComputationWizard = () => {
     const payload = {
       dataFile: dataFile,
       programFile: programFile,
+      policyEngine: policyEngine,
       sessionId: client.sessionId,
     }
 
@@ -136,15 +138,22 @@ const ComputationWizard = () => {
               <h2 className="step-title">Establish Trust in the Secure Environment</h2>
             </div>
             <div className="step-content">
-              {attestationStatus !== 'succeeded' && (
+              {attestationStatus === 'pending' && (
+                <div className="computation-pending-indicator">
+                  <div className="spinner"></div>
+                  <h4>Attestation in progress...</h4>
+                  <p>Please wait while the secure environment finishes the attestation. This will be quick.</p>
+                </div>
+              )}
+
+              {attestationStatus === 'idle' && (
                 <>
                   <p>Before proceeding, you must cryptographically verify the integrity of the remote environment.</p>
                   <Button
                     onClick={handleStartAttestation}
-                    disabled={attestationStatus === 'pending'}
                     type="text"
                   >
-                    {attestationStatus === 'pending' ? 'Verifying...' : 'Verify Environment'}
+                    Verify Environment
                   </Button>
                 </>
               )}
@@ -179,6 +188,12 @@ const ComputationWizard = () => {
                   onFileSelect={setProgramFile}
                 />
               </div>
+              <FileUploader
+                title="Policy Engine: Upload Policy"
+                description="Upload the policy engine file that will enforce data access rules."
+                selectedFile={policyEngine}
+                onFileSelect={setPolicyEngine}
+              />
 
               {dataFile && programFile && (
                 <div className="upload-action-container">
@@ -192,9 +207,12 @@ const ComputationWizard = () => {
 
                   {/* State 2: Uploading in progress */}
                   {uploadStatus === 'pending' && (
-                    <Button disabled className="execute-button">
-                      Uploading...
-                    </Button>
+                    (
+                      <div className="computation-pending-indicator">
+                        <div className="spinner"></div>
+                        <h4>Uploading in progress...</h4>
+                      </div>
+                    )
                   )}
 
                 </div>

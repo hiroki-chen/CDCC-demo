@@ -4279,11 +4279,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "policy-styx"
+name = "policy-engine"
 version = "0.1.0"
 dependencies = [
- "anyhow",
+ "bincode",
  "policy-styx-lib",
+ "uuid",
 ]
 
 [[package]]
@@ -4335,22 +4336,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "policy-styx-runner"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "policy-styx-lib",
- "wasi-common",
- "wasmtime",
-]
-
-[[package]]
 name = "policy-styx-server"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
  "base64-serde",
+ "bincode",
  "dcap-rs",
  "env_logger",
  "log",
@@ -4363,6 +4355,7 @@ dependencies = [
  "tokio",
  "tower-http",
  "uuid",
+ "wasi-common",
 ]
 
 [[package]]

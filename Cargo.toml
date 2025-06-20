@@ -5,14 +5,14 @@ members = [
   "policy-styx-data-owner",
   "policy-styx-lib",
   "policy-styx-proto",
-  "policy-styx-runner",
   "sandbox-apps/cox-demo",
   "sandbox-apps/polars-demo",
-  "sandbox-apps/policy-styx",
+  "sandbox-apps/policy-engine",
 ]
 
 [workspace.dependencies]
 anyhow = { version = "1.0.95", default-features = false }
+bincode = "1.3.3"
 chrono = { version = "0.4.41", default-features = false }
 libc = "0.2.172"
 polars = { git = "https://github.com/hiroki-chen/polars.git", default-features = false, features = [
@@ -31,8 +31,8 @@ polars = { git = "https://github.com/hiroki-chen/polars.git", default-features =
   "strings",
   "dtype-datetime",
 ] }
-policy-styx-lib = { path = "policy-styx-lib" }
-policy-styx = { path = "policy-styx" }
+policy-styx-lib = { path = "policy-styx-lib", default-features = false }
 policy-styx-proto = { path = "policy-styx-proto" }
 tdx = { version = "0.1.0", git = "https://github.com/hiroki-chen/tdx-attestation-sdk.git" }
 dcap-rs = { git = "https://github.com/automata-network/dcap-rs.git" }
+uuid = { version = "1.13.1", features = ["serde", "v4"] }
