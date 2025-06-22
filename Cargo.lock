@@ -1266,11 +1266,25 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 [[package]]
 name = "cox-demo"
 version = "0.1.0"
+dependencies = [
+ "coxfitter 0.1.0",
+]
 
 [[package]]
 name = "coxfitter"
 version = "0.1.0"
-source = "git+https://github.com/hiroki-chen/coxphfitter.git#9fd44f5fd868213778a9ab721aa20fa00d766ffe"
+dependencies = [
+ "anyhow",
+ "ndarray",
+ "ndarray-linalg",
+ "ndarray_einsum_beta",
+ "polars",
+]
+
+[[package]]
+name = "coxfitter"
+version = "0.1.0"
+source = "git+https://github.com/hiroki-chen/coxphfitter.git?rev=d487d7e#d487d7ea6b6abfd9c70fb88da1196b5706f23262"
 dependencies = [
  "anyhow",
  "ndarray",
@@ -4034,9 +4048,11 @@ name = "polars-demo"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode",
  "chrono",
- "coxfitter",
+ "coxfitter 0.1.0 (git+https://github.com/hiroki-chen/coxphfitter.git?rev=d487d7e)",
  "polars",
+ "policy-styx-lib",
  "uuid",
 ]
 

@@ -10,6 +10,7 @@ use chrono::NaiveDate;
 use coxfitter::{CoxPHFitter, CoxPHFitterArgs, CoxPHResults};
 use polars::io::mmap::MmapBytesReader;
 use polars::prelude::*;
+use policy_styx_lib::types::PcdWasmPtr;
 use uuid::Uuid;
 
 mod consts;
@@ -27,15 +28,8 @@ static PCD_RUNTIME_CTX: OnceLock<PcdRuntimeCtx> = OnceLock::new();
 /// A unique session ID for the current runtime context.
 static SESSION_ID: OnceLock<Uuid> = OnceLock::new();
 
-#[link(wasm_import_module = "env")]
+// #[link(wasm_import_module = "pcd_host_api")]
 extern "C" {
-    // Return the length of the data.
-    fn pcd_data_access_prepare(
-        ctx: i64,
-        session_id: *const u8,
-        session_len: u32,
-        data_uuid: *const u8,
-    ) -> i32;
     // Get the target data.
     fn pcd_dataset_access(
         ctx: i64,
@@ -63,12 +57,47 @@ pub extern "C" fn allocate(size: usize) -> *mut u8 {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn deallocate(ptr: *mut u8, size: usize) {
-    let _ = Vec::from_raw_parts(ptr, 0, size);
+pub unsafe extern "C" fn deallocate(ptr: PcdWasmPtr) {
+    let len = (ptr & 0xFFFFFFFF) as usize; // Extract the length part
+    let ptr = (ptr >> 32) as *mut u8; // Extract the pointer part
+
+    if ptr.is_null() || len == 0 {
+        return; // Nothing to deallocate
+    }
+
+    // SAFETY: We assume that the pointer is valid and was allocated by this module.
+    let _ = Vec::from_raw_parts(ptr, len, len); // This will deallocate the memory
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn entry(ctx: i64, param_ptr: *const u8, param_len: u32) -> i32 {
+pub unsafe extern "C" fn set_session_id(session_id: PcdWasmPtr) {
+    let session_id_len = (session_id & 0xFFFFFFFF) as usize; // Extract the length part
+    let session_id_ptr = (session_id >> 32) as *const u8; // Extract the pointer part
+
+    if session_id_ptr.is_null() || session_id_len == 0 {
+        return; // Invalid session ID
+    }
+
+    let session_id_bytes = std::slice::from_raw_parts(session_id_ptr, session_id_len);
+    let session_id = Uuid::from_slice(session_id_bytes)
+        .map_err(|e| anyhow!("Invalid UUID format: {}", e))
+        .unwrap();
+
+    SESSION_ID.set(session_id).unwrap();
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn entry(ctx: i64, params: PcdWasmPtr) -> i32 {
+    let param_ptr = params >> 32;
+    let param_len = params & 0xFFFFFFFF;
+
+    let params = std::slice::from_raw_parts(param_ptr as *const u8, param_len as usize);
+    let params: HashMap<String, Vec<u8>> = bincode::deserialize(params)
+        .map_err(|e| anyhow!("Failed to deserialize params: {}", e))
+        .unwrap();
+
+    let f = pcd_dataset_access;
+
     0
 }
 

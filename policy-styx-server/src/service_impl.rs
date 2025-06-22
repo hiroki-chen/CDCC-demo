@@ -15,6 +15,7 @@ use policy_styx_lib::app::{PcdWasmRuntime, Session};
 #[cfg(all(not(feature = "mock"), feature = "platform-tdx"))]
 use policy_styx_lib::attestation;
 use policy_styx_lib::proxy;
+use policy_styx_lib::types::PcdWasmPtr;
 use serde::{Deserialize, Serialize};
 use serde_with::base64::Base64;
 use serde_with::serde_as;
@@ -68,8 +69,7 @@ struct PolicyStyxPrepareRequest {
 struct PolicyStyxComputeRequest {
     session_id: Uuid, // The session ID for the computation.
     entry: String,
-    #[serde_as(as = "Base64")]
-    args: Vec<u8>, // Arguments for the computation.
+    args: HashMap<String, Vec<u8>>, // Arguments for the computation.
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -113,26 +113,28 @@ impl ServerState {
     /// instantiation, the host bridge functions will be imported.
     fn register_host_bridge_functions(runtime: &mut PcdWasmRuntime) -> Result<(), StatusCode> {
         // Register the host bridge functions for the PCD dataset.
-        // These functions will be called by the WASM module to access the PCD dataset.
-        runtime
-            .register_native_functions("pcd_data_access", proxy::pcd_dataset_data_access_host)
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        runtime
-            .register_native_functions("pcd_data_release", proxy::pcd_dataset_data_release_host)
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        // // These functions will be called by the WASM module to access the PCD dataset.
+        // runtime
+        //     .register_native_functions("pcd_data_access", proxy::pcd_dataset_data_access_host)
+        //     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        // runtime
+        //     .register_native_functions("pcd_data_release", proxy::pcd_dataset_data_release_host)
+        //     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         Ok(())
     }
 
     pub fn new() -> Result<Self> {
-        let wasi_ctx = WasiCtxBuilder::new().inherit_stdio().build();
-        let mut rt =
-            PcdWasmRuntime::new(wasi_ctx).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        Self::register_host_bridge_functions(&mut rt)?;
-        rt.load_policy_engine("./data/policy_engine.wasm")
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        // let wasi_ctx = WasiCtxBuilder::new().inherit_stdio().build();
+        // let mut rt =
+        //     PcdWasmRuntime::new(wasi_ctx).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        // Self::register_host_bridge_functions(&mut rt)?;
+        // rt.load_policy_engine("./data/policy_engine.wasm")
+        //     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-        Ok(ServerState { rt })
+        // Ok(ServerState { rt })
+
+        todo!()
     }
 }
 
@@ -191,7 +193,7 @@ async fn policy_styx_prepare_computation(
     sessions
         .rt
         .pcd_dataset_add_data(&session_id, input_data)
-        .map_err(|e| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     // --- Step 3: Update the session state ---
     // The borrow for `load_new_application` is now finished. We can start a new
@@ -332,18 +334,26 @@ async fn policy_styx_compute(
         let idx = session.app_idx.ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
 
         // Let the module knows its sesssion.
-        let (ptr, len) = sessions
+        let ptr = sessions
             .rt
             .write_memory(Some(idx), request.session_id.as_bytes())
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-        let (ptr, len) = sessions
+        sessions
             .rt
-            .execute_typed_function::<(u32, u32), (u32, u32)>(idx, &request.entry, (ptr, len))
+            .execute_typed_function::<PcdWasmPtr, ()>(idx, &request.entry, ptr)
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        let args =
+            bincode::serialize(&request.args).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        let ptr = sessions
+            .rt
+            .write_memory(Some(idx), &args)
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
         let ret = sessions
             .rt
-            .read_memory(Some(idx), ptr, len)
+            .read_memory(Some(idx), ptr)
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         Ok(ret)

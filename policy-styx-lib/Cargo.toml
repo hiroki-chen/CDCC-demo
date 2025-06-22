@@ -20,3 +20,8 @@ wasmtime = { version = "29.0.1", features = ["runtime"], optional = true }
 default = ["platform-tdx", "runtime"]
 runtime = ["wasmtime", "wasi-common"]
 platform-tdx = ["tdx", "dcap-rs", "libc"]
+
+# Add customized rust source file as test
+[[test]]
+name = "integration"
+path = "../test/test_sandboxes.rs"

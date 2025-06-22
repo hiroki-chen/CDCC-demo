@@ -36,3 +36,4 @@ policy-styx-proto = { path = "policy-styx-proto" }
 tdx = { version = "0.1.0", git = "https://github.com/hiroki-chen/tdx-attestation-sdk.git" }
 dcap-rs = { git = "https://github.com/automata-network/dcap-rs.git" }
 uuid = { version = "1.13.1", features = ["serde", "v4"] }
+

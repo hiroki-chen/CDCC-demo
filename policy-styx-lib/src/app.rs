@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::fs;
+use std::sync::{Arc, RwLock};
 
 use anyhow::anyhow;
 use uuid::Uuid;
@@ -23,16 +24,62 @@ pub struct Session {
 pub struct PcdRuntimeState {
     pub wasi: WasiCtx,
     pub sessions: HashMap<Uuid, Session>,
+    /// Special: the policy engine.
+    pub(crate) policy_engine: Arc<RwLock<Option<PcdApp>>>,
 }
 
 /// The WASM runtime structure.
 pub struct PcdWasmRuntime {
     pub(crate) linker: Linker<PcdRuntimeState>,
-    /// The application registry.
-    pub(crate) app_registry: Vec<PcdApp>,
-    /// Special: the policy engine.
-    pub(crate) policy_engine: Option<PcdApp>,
     pub store: Store<PcdRuntimeState>,
+    pub(crate) app_registry: Vec<PcdApp>,
+}
+
+pub struct PcdWasmRuntimeBuilder {
+    engine: Engine,
+    linker: Linker<PcdRuntimeState>,
+}
+
+impl PcdWasmRuntimeBuilder {
+    /// Starts building a new runtime.
+    pub fn new() -> Result<Self> {
+        let engine = Engine::default();
+        let mut linker = Linker::new(&engine);
+
+        // Add WASI functions immediately. This is the base layer.
+        add_to_linker(&mut linker, |s: &mut PcdRuntimeState| &mut s.wasi)?;
+
+        Ok(Self { engine, linker })
+    }
+
+    /// Register a custom native function with the runtime builder.
+    pub fn with_host_function<Params, Results>(
+        mut self,
+        name: &str,
+        func: impl IntoFunc<PcdRuntimeState, Params, Results>,
+    ) -> Result<Self> {
+        // Note: The original code defines 'func' inside the runtime, which is complex.
+        // It's simpler to define it against the linker directly before the store exists.
+        self.linker.func_wrap("pcd_host_api", name, func)?;
+        Ok(self)
+    }
+
+    /// Consumes the builder to produce the final, ready-to-use runtime.
+    pub fn build(self, wasi_ctx: WasiCtx) -> PcdWasmRuntime {
+        let state = PcdRuntimeState {
+            wasi: wasi_ctx,
+            sessions: HashMap::new(),
+            policy_engine: Arc::new(RwLock::new(None)),
+        };
+
+        let store = Store::new(&self.engine, state);
+
+        PcdWasmRuntime {
+            linker: self.linker,
+            store,
+            app_registry: Vec::new(),
+        }
+    }
 }
 
 /// The application structure.
@@ -73,30 +120,6 @@ impl PcdWasmRuntime {
             .map_err(|e| e.into())
     }
 
-    /// Create a new WASM runtime.
-    ///
-    /// # Arguments
-    ///
-    /// * `data` - The data to be stored in the runtime.
-    pub fn new(wasi_ctx: WasiCtx) -> Result<Self> {
-        let data = PcdRuntimeState {
-            wasi: wasi_ctx,
-            sessions: HashMap::new(),
-        };
-        let engine = Engine::default();
-        let store = Store::new(&engine, data);
-        let mut linker = Linker::new(&engine);
-
-        add_to_linker(&mut linker, |s: &mut PcdRuntimeState| &mut s.wasi)?;
-
-        Ok(Self {
-            linker,
-            store,
-            app_registry: Vec::new(),
-            policy_engine: None,
-        })
-    }
-
     #[inline]
     pub fn pcd_app_get_app(&self, idx: usize) -> Option<&PcdApp> {
         self.app_registry.get(idx)
@@ -104,23 +127,16 @@ impl PcdWasmRuntime {
 
     #[inline]
     pub fn is_init(&self) -> bool {
-        self.policy_engine.is_some()
-    }
-
-    pub fn register_native_functions<Params, Results>(
-        &mut self,
-        name: &str,
-        func: impl IntoFunc<PcdRuntimeState, Params, Results>,
-    ) -> Result<()> {
-        let func = Func::wrap(&mut self.store, func);
-        self.linker.define(&mut self.store, "env", name, func)?;
-
-        Ok(())
+        self.store.data().policy_engine.read().unwrap().is_some()
     }
 
     pub fn load_policy_engine(&mut self, path: &str) -> Result<()> {
         let policy_app = self.load_wasm_module(path)?;
-        self.policy_engine = Some(policy_app);
+        let mut policy_engine = self.store.data().policy_engine.write().unwrap();
+        if policy_engine.is_some() {
+            return Err(anyhow!("Policy engine is already loaded"));
+        }
+        *policy_engine = Some(policy_app);
 
         Ok(())
     }
@@ -169,9 +185,9 @@ impl PcdWasmRuntime {
     }
 
     fn load_wasm_module(&mut self, path: &str) -> Result<PcdApp> {
-        let buffer = fs::read_to_string(path)?;
-        let hash = pcd_crypto_backend_sha256_hash_buffer(buffer.as_bytes())?;
-        let app_module = PcdModule::from_binary(&self.store.engine(), buffer.as_bytes())?;
+        let buffer = fs::read(path)?;
+        let hash = pcd_crypto_backend_sha256_hash_buffer(&buffer)?;
+        let app_module = PcdModule::from_binary(&self.store.engine(), &buffer)?;
         let app_instance = self.linker.instantiate(&mut self.store, &app_module)?;
         let app = PcdApp::new(app_module, app_instance, hash);
 

@@ -1,6 +1,7 @@
 #![allow(non_camel_case_types)]
 
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::types::PcdIdentity;
 
@@ -30,4 +31,13 @@ pub struct PcdPayload {
     pub tag_size: u64,
     pub attribute_size: u64,
     pub payload: Vec<u8>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct PcdDataset {
+    pub dataset_policy_passed: bool,
+    pub data_count: u32,
+    pub data_max_count: u32,
+    pub policy_type: Uuid,
+    pub payload_ptr: PcdPayload,
 }
