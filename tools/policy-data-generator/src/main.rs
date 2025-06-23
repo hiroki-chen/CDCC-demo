@@ -53,7 +53,16 @@ fn main() {
     // Process each file.
     let files = files
         .into_iter()
-        .map(|entry| std::fs::read(entry.path()).expect("Failed to read file"))
+        .map(|entry| {
+            // Extract the file name without the extension.
+            let name = entry
+                .file_name()
+                .to_str()
+                .expect("Failed to convert file name to string")
+                .replace(&format!(".{}", args.input_ext), "");
+            let data = std::fs::read(entry.path()).expect("Failed to read file");
+            (name, data)
+        })
         .collect::<Vec<_>>();
 
     let key = pcd_crypto_backend_aes_gcm_randkey_generate().expect("Failed to generate random key");

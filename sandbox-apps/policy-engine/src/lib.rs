@@ -60,6 +60,8 @@ pub unsafe extern "C" fn deallocate(ptr: PcdWasmRawPtr) {
 // --------- Data Access APIs --------- //
 #[no_mangle]
 pub unsafe extern "C" fn pcd_dataset_data_access(data_uuid: PcdWasmRawPtr) -> PcdWasmRawPtr {
+    println!("[Sandbox] [Policy Engine] Accessing dataset data...");
+
     let data_uuid_len = (data_uuid & 0xFFFFFFFF) as usize; // Extract the length part
     let data_uuid = data_uuid >> 32; // Extract the UUID part from the PcdWasmPtr
 
@@ -72,15 +74,18 @@ pub unsafe extern "C" fn pcd_dataset_data_access(data_uuid: PcdWasmRawPtr) -> Pc
     match DATA_REGISTRY.lock() {
         Ok(registry) => {
             if let Some(dataset) = registry.get(&uuid) {
-                println!("[Sandbox] Trying to access dataset with UUID: {}", uuid);
+                println!(
+                    "[Sandbox] [Policy Engine] Trying to access dataset with UUID: {}",
+                    uuid
+                );
 
                 // TODO: Evaluate with the policy.
-                println!("[Sandbox] Evaluating dataset access with policy...");
+                println!("[Sandbox] [Policy Engine] Evaluating dataset access with policy...");
                 {
                     // Here you would typically call a method on the policy engine
                     // to handle the dataset data access.
                     // For now, we just print a message.
-                    println!("[Sandbox] [Proxy] Policy Evaluation OK :)");
+                    println!("[Sandbox] [[Policy Engine]] Policy Evaluation OK :)");
                 }
 
                 // Serialize the dataset to bytes.
@@ -92,7 +97,8 @@ pub unsafe extern "C" fn pcd_dataset_data_access(data_uuid: PcdWasmRawPtr) -> Pc
                 let dataset_len = dataset_bytes.len() as PcdWasmRawPtr;
                 let dataset_ptr = dataset_bytes.as_ptr() as PcdWasmRawPtr;
 
-                std::mem::forget(dataset_bytes); // Prevent deallocation of the vector: the caller must handle de-allocation!
+                std::mem::forget(dataset_bytes);
+                // Prevent deallocation of the vector: the caller must handle de-allocation!
 
                 // Return the pointer and length as a FAT pointer
                 dataset_ptr << 32 | dataset_len

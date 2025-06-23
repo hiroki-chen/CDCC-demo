@@ -1324,7 +1324,7 @@ dependencies = [
 [[package]]
 name = "coxfitter"
 version = "0.1.0"
-source = "git+https://github.com/hiroki-chen/coxphfitter.git?rev=e474022#e47402226ecec9dc7a9c69188a95fb4730cd71fa"
+source = "git+https://github.com/hiroki-chen/coxphfitter.git?rev=393ab2b#393ab2b244ad357382bb77b5bc9681efa8657a85"
 dependencies = [
  "anyhow",
  "ndarray",
@@ -3973,7 +3973,7 @@ dependencies = [
 [[package]]
 name = "polars"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#66fcc6cd9ffdeb65cf70c1f9fb45a7d9f40c891d"
+source = "git+https://github.com/hiroki-chen/polars.git?rev=cbdb9b#cbdb9b3eaa6e0f4f22f6b7f5794db9867508e042"
 dependencies = [
  "getrandom 0.2.16",
  "polars-arrow",
@@ -3992,7 +3992,7 @@ dependencies = [
 [[package]]
 name = "polars-arrow"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#66fcc6cd9ffdeb65cf70c1f9fb45a7d9f40c891d"
+source = "git+https://github.com/hiroki-chen/polars.git?rev=cbdb9b#cbdb9b3eaa6e0f4f22f6b7f5794db9867508e042"
 dependencies = [
  "ahash",
  "atoi",
@@ -4037,7 +4037,7 @@ dependencies = [
 [[package]]
 name = "polars-compute"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#66fcc6cd9ffdeb65cf70c1f9fb45a7d9f40c891d"
+source = "git+https://github.com/hiroki-chen/polars.git?rev=cbdb9b#cbdb9b3eaa6e0f4f22f6b7f5794db9867508e042"
 dependencies = [
  "bytemuck",
  "either",
@@ -4052,7 +4052,7 @@ dependencies = [
 [[package]]
 name = "polars-core"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#66fcc6cd9ffdeb65cf70c1f9fb45a7d9f40c891d"
+source = "git+https://github.com/hiroki-chen/polars.git?rev=cbdb9b#cbdb9b3eaa6e0f4f22f6b7f5794db9867508e042"
 dependencies = [
  "ahash",
  "bitflags 2.9.1",
@@ -4088,7 +4088,7 @@ dependencies = [
  "anyhow",
  "bincode",
  "chrono",
- "coxfitter 0.1.0 (git+https://github.com/hiroki-chen/coxphfitter.git?rev=e474022)",
+ "coxfitter 0.1.0 (git+https://github.com/hiroki-chen/coxphfitter.git?rev=393ab2b)",
  "polars",
  "policy-styx-lib",
  "uuid",
@@ -4097,7 +4097,7 @@ dependencies = [
 [[package]]
 name = "polars-error"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#66fcc6cd9ffdeb65cf70c1f9fb45a7d9f40c891d"
+source = "git+https://github.com/hiroki-chen/polars.git?rev=cbdb9b#cbdb9b3eaa6e0f4f22f6b7f5794db9867508e042"
 dependencies = [
  "polars-arrow-format",
  "regex",
@@ -4108,7 +4108,7 @@ dependencies = [
 [[package]]
 name = "polars-io"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#66fcc6cd9ffdeb65cf70c1f9fb45a7d9f40c891d"
+source = "git+https://github.com/hiroki-chen/polars.git?rev=cbdb9b#cbdb9b3eaa6e0f4f22f6b7f5794db9867508e042"
 dependencies = [
  "ahash",
  "async-trait",
@@ -4137,7 +4137,7 @@ dependencies = [
 [[package]]
 name = "polars-lazy"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#66fcc6cd9ffdeb65cf70c1f9fb45a7d9f40c891d"
+source = "git+https://github.com/hiroki-chen/polars.git?rev=cbdb9b#cbdb9b3eaa6e0f4f22f6b7f5794db9867508e042"
 dependencies = [
  "ahash",
  "bitflags 2.9.1",
@@ -4161,7 +4161,7 @@ dependencies = [
 [[package]]
 name = "polars-ops"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#66fcc6cd9ffdeb65cf70c1f9fb45a7d9f40c891d"
+source = "git+https://github.com/hiroki-chen/polars.git?rev=cbdb9b#cbdb9b3eaa6e0f4f22f6b7f5794db9867508e042"
 dependencies = [
  "ahash",
  "argminmax",
@@ -4191,7 +4191,7 @@ dependencies = [
 [[package]]
 name = "polars-parquet"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#66fcc6cd9ffdeb65cf70c1f9fb45a7d9f40c891d"
+source = "git+https://github.com/hiroki-chen/polars.git?rev=cbdb9b#cbdb9b3eaa6e0f4f22f6b7f5794db9867508e042"
 dependencies = [
  "ahash",
  "async-stream",
@@ -4216,7 +4216,7 @@ dependencies = [
 [[package]]
 name = "polars-pipe"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#66fcc6cd9ffdeb65cf70c1f9fb45a7d9f40c891d"
+source = "git+https://github.com/hiroki-chen/polars.git?rev=cbdb9b#cbdb9b3eaa6e0f4f22f6b7f5794db9867508e042"
 dependencies = [
  "crossbeam-channel",
  "crossbeam-queue",
@@ -4240,7 +4240,7 @@ dependencies = [
 [[package]]
 name = "polars-plan"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#66fcc6cd9ffdeb65cf70c1f9fb45a7d9f40c891d"
+source = "git+https://github.com/hiroki-chen/polars.git?rev=cbdb9b#cbdb9b3eaa6e0f4f22f6b7f5794db9867508e042"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -4268,7 +4268,7 @@ dependencies = [
 [[package]]
 name = "polars-row"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#66fcc6cd9ffdeb65cf70c1f9fb45a7d9f40c891d"
+source = "git+https://github.com/hiroki-chen/polars.git?rev=cbdb9b#cbdb9b3eaa6e0f4f22f6b7f5794db9867508e042"
 dependencies = [
  "bytemuck",
  "polars-arrow",
@@ -4279,7 +4279,7 @@ dependencies = [
 [[package]]
 name = "polars-sql"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#66fcc6cd9ffdeb65cf70c1f9fb45a7d9f40c891d"
+source = "git+https://github.com/hiroki-chen/polars.git?rev=cbdb9b#cbdb9b3eaa6e0f4f22f6b7f5794db9867508e042"
 dependencies = [
  "hex",
  "polars-arrow",
@@ -4296,7 +4296,7 @@ dependencies = [
 [[package]]
 name = "polars-time"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#66fcc6cd9ffdeb65cf70c1f9fb45a7d9f40c891d"
+source = "git+https://github.com/hiroki-chen/polars.git?rev=cbdb9b#cbdb9b3eaa6e0f4f22f6b7f5794db9867508e042"
 dependencies = [
  "atoi",
  "chrono",
@@ -4315,7 +4315,7 @@ dependencies = [
 [[package]]
 name = "polars-utils"
 version = "0.39.2"
-source = "git+https://github.com/hiroki-chen/polars.git#66fcc6cd9ffdeb65cf70c1f9fb45a7d9f40c891d"
+source = "git+https://github.com/hiroki-chen/polars.git?rev=cbdb9b#cbdb9b3eaa6e0f4f22f6b7f5794db9867508e042"
 dependencies = [
  "ahash",
  "bytemuck",
@@ -6970,7 +6970,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]

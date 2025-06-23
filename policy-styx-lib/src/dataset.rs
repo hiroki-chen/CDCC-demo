@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anyhow::{anyhow, Ok};
 use uuid::Uuid;
 use wasmtime::Result;
@@ -254,16 +256,43 @@ pub fn pcd_dataset_pack_data(data: &[u8], key: &[u8]) -> Result<PcdEncData> {
     Ok(enc_data)
 }
 
-pub fn pcd_dataset_pack_data_multiple<I, T>(data: I, key: &[u8]) -> Result<PcdEncData>
+/// Serializes a collection of named data slices into a binary format.
+///
+/// This block takes an iterator of `(name, data)` pairs, where both `name` and `data`
+/// are references, and converts them into owned `String` and `Vec<u8>` types respectively.
+/// The resulting `HashMap<String, Vec<u8>>` is then serialized using `bincode`.
+///
+/// # Errors
+///
+/// Returns an error if serialization fails, wrapping the original error with additional context.
+///
+/// # Example
+///
+/// ```rust
+/// use std::collections::HashMap;
+/// let data: Vec<(&str, &[u8])> = vec![("foo", &[1, 2, 3]), ("bar", &[4, 5])];
+/// let packed_data = {
+///     let data = data
+///         .into_iter()
+///         .map(|(name, data)| (name.to_string(), data.to_vec()))
+///         .collect::<HashMap<_, _>>();
+///     bincode::serialize(&data).unwrap()
+/// };
+/// ```
+pub fn pcd_dataset_pack_data_multiple<I, T, S>(data: I, key: &[u8]) -> Result<PcdEncData>
 where
-    I: IntoIterator<Item = T>,
+    I: IntoIterator<Item = (S, T)>,
     T: AsRef<[u8]>,
+    S: AsRef<str>,
 {
-    let mut packed_data = vec![];
+    let packed_data = {
+        let data = data
+            .into_iter()
+            .map(|(name, data)| (name.as_ref().to_string(), data.as_ref().to_vec()))
+            .collect::<HashMap<_, _>>();
 
-    data.into_iter().for_each(|chunk| {
-        packed_data.extend_from_slice(chunk.as_ref());
-    });
+        bincode::serialize(&data).map_err(|e| anyhow::anyhow!("Failed to serialize data: {}", e))?
+    };
 
     pcd_dataset_pack_data(&packed_data, key)
 }

@@ -63,6 +63,15 @@ impl PcdWasmPtr {
             .write(store, self.ptr as usize, &buffer)
             .map_err(|e| e.into())
     }
+
+    #[cfg(feature = "runtime")]
+    pub fn dealloc(&self, mut store: impl AsContextMut, instance: &PcdInstance) -> PcdResult<()> {
+        let dealloc = instance
+            .get_typed_func::<PcdWasmRawPtr, ()>(&mut store, "deallocate")
+            .map_err(|e| anyhow::anyhow!("e"))?;
+
+        dealloc.call(store, self.into())
+    }
 }
 
 impl From<PcdWasmPtr> for PcdWasmRawPtr {
@@ -72,11 +81,27 @@ impl From<PcdWasmPtr> for PcdWasmRawPtr {
     }
 }
 
+impl From<&PcdWasmPtr> for PcdWasmRawPtr {
+    #[inline]
+    fn from(ptr: &PcdWasmPtr) -> Self {
+        ((ptr.ptr as u64) << 32) | (ptr.len as u64)
+    }
+}
+
 impl From<PcdWasmRawPtr> for PcdWasmPtr {
     #[inline]
     fn from(raw_ptr: PcdWasmRawPtr) -> Self {
         let ptr = (raw_ptr >> 32) as u32;
         let len = (raw_ptr & 0xFFFFFFFF) as u32;
+        Self { ptr, len }
+    }
+}
+
+impl From<&PcdWasmRawPtr> for PcdWasmPtr {
+    #[inline]
+    fn from(raw_ptr: &PcdWasmRawPtr) -> Self {
+        let ptr = (*raw_ptr >> 32) as u32;
+        let len = (*raw_ptr & 0xFFFFFFFF) as u32;
         Self { ptr, len }
     }
 }

@@ -1,14 +1,10 @@
-#![allow(unused)]
-
 use std::collections::HashMap;
 use std::io::Cursor;
 use std::ops::{Div, Sub};
 use std::sync::OnceLock;
 
 use anyhow::{anyhow, Result};
-use chrono::NaiveDate;
 use coxfitter::{CoxPHFitter, CoxPHFitterArgs, CoxPHResults};
-use polars::io::mmap::MmapBytesReader;
 use polars::prelude::*;
 use policy_styx_lib::data::PcdDataset;
 use policy_styx_lib::types::PcdWasmRawPtr;
@@ -18,16 +14,12 @@ mod consts;
 
 use consts::*;
 
-struct PcdRuntimeCtx {
-    handle: i64,
-}
+type PcdPackedData = HashMap<String, Vec<u8>>;
 
-/// A global runtime context for the PCD (Patient Care Data) runtime.
-/// This context is initialized once and contains the handle to the runtime.
-/// Used for callbacks.
-static PCD_RUNTIME_CTX: OnceLock<PcdRuntimeCtx> = OnceLock::new();
 /// A unique session ID for the current runtime context.
 static SESSION_ID: OnceLock<Uuid> = OnceLock::new();
+/// The global table registry.
+static TABLE_REGISTRY: OnceLock<HashMap<String, Vec<u8>>> = OnceLock::new();
 
 #[link(wasm_import_module = "pcd_host_api")]
 extern "C" {
@@ -116,27 +108,26 @@ pub unsafe extern "C" fn entry(params: PcdWasmRawPtr) -> PcdWasmRawPtr {
 
     println!("[Sandbox] Processing dataset with UUID: {}", data_uuid);
 
-    let data_inner = bincode::deserialize::<Vec<Vec<u8>>>(&data.payload_ptr.payload)
+    let data_inner = bincode::deserialize::<PcdPackedData>(&data.payload_ptr.payload)
         .map_err(|e| anyhow!("Failed to deserialize dataset payload: {}", e))
         .unwrap();
 
-    println!("[Sandbox] Dataset data count: {}", data.data_count);
+    println!("[Sandbox] Dataset data count: {}", data_inner.len());
 
-    let data_inner = data_inner
-        .into_iter()
-        .map(|data| {
-            let cursor = Cursor::new(data);
-            IpcReader::new(cursor)
-                .finish()
-                .map_err(|e| anyhow!("Failed to read IPC data: {}", e))
-        })
-        .collect::<Result<Vec<_>>>()
-        .unwrap();
+    TABLE_REGISTRY.get_or_init(move || data_inner);
 
-    println!(
-        "[Sandbox] Loaded {} DataFrames from dataset",
-        data_inner.len()
-    );
+    let merged_table = merge_healthcare_data(&TABLE_REGISTRY.get().unwrap())
+        .expect("Failed to merge healthcare data");
+
+    let comorbidity_cols = CHARLSON_COVARIATES.iter().map(|&s| s).collect::<Vec<_>>();
+    let encoded_data = perform_imputation(&merged_table, &comorbidity_cols).unwrap();
+
+    println!("[Sandbox] Encoded data shape: {:?}", encoded_data.shape());
+
+    // TODO [Upstream] Make `CoxPHResults` serializable.
+    // Run the Cox analysis with the merged data.
+    // TODO [Upstream ?] This introduces some CBLAS dependencies but not available in wasip1 environment.
+    // let res = run_cox_analysis_with_privacy(encoded_data).expect("Failed to run Cox analysis");
 
     0
 }
@@ -145,8 +136,8 @@ fn build_charlson_expressions() -> Vec<Expr> {
     let mut charlson_conditions_exprs = Vec::new();
 
     for (condition_name, codes_map) in CHARLSON_CONDITIONS.iter() {
-        let icd9_codes_iter = codes_map.get("9").unwrap().iter().map(|s| lit(s.as_str()));
-        let icd10_codes_iter = codes_map.get("10").unwrap().iter().map(|s| lit(s.as_str()));
+        // let icd9_codes_iter = codes_map.get("9").unwrap().iter().map(|s| lit(s.as_str()));
+        // let icd10_codes_iter = codes_map.get("10").unwrap().iter().map(|s| lit(s.as_str()));
 
         // Polars doesn't have a direct equivalent of `in` on a list of expressions.
         // Instead, we use `is_in` with a literal list or use `any` with `eq`.
@@ -262,6 +253,7 @@ fn get_t_expression() -> Expr {
         .alias("T")
 }
 
+#[allow(unused)]
 fn perform_imputation(df: &DataFrame, comorbidity_cols: &[&str]) -> Result<DataFrame> {
     let df = df.clone().lazy();
     // lengths don't match: unable to add a column of length 2 to a DataFrame of height 100 ?
@@ -350,10 +342,6 @@ fn drop_nans(lf: LazyFrame, subset: Option<Vec<Expr>>) -> LazyFrame {
     }
 }
 
-/// Replace the given data.
-fn replace(lf: LazyFrame) -> LazyFrame {
-    todo!()
-}
 /// Merge healthcare data.
 ///
 /// The input is a collection of raw Apache Arrow files (in-memory).
@@ -529,14 +517,12 @@ fn run_cox_analysis_with_privacy(combined_data: DataFrame) -> Result<CoxPHResult
         event_col: "event",
         ..Default::default()
     };
-    let mut cph = CoxPHFitter::new(args);
+    let cph = CoxPHFitter::new(args);
     cph.fit(&cox_data)
 }
 
 #[cfg(test)]
 mod test {
-    use std::io::Cursor;
-
     use super::*;
 
     const TEST_DATA_PATH: &'static str = "../../data";

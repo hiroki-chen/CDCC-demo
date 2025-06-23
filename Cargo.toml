@@ -1,14 +1,14 @@
 [workspace]
 resolver = "2"
 members = [
-  "policy-styx-server",
-  "policy-styx-data-owner",
-  "policy-styx-lib",
-  "policy-styx-proto",
-  "sandbox-apps/cox-demo",
-  "sandbox-apps/polars-demo",
-  "sandbox-apps/policy-engine",
-  "tools/policy-data-generator",
+    "policy-styx-server",
+    "policy-styx-data-owner",
+    "policy-styx-lib",
+    "policy-styx-proto",
+    "sandbox-apps/cox-demo",
+    "sandbox-apps/polars-demo",
+    "sandbox-apps/policy-engine",
+    "tools/policy-data-generator",
 ]
 
 [workspace.dependencies]
@@ -18,21 +18,21 @@ chrono = { version = "0.4.41", default-features = false }
 libc = "0.2.172"
 log = "0.4.27"
 polars = { git = "https://github.com/hiroki-chen/polars.git", default-features = false, features = [
-  "lazy",
-  "polars-io",
-  "ipc",
-  "dtype-categorical",
-  "round_series",
-  "parquet",
-  "to_dummies",
-  "is_in",
-  "temporal",
-  "cross_join",
-  "dtype-date",
-  "regex",
-  "strings",
-  "dtype-datetime",
-] }
+    "lazy",
+    "polars-io",
+    "ipc",
+    "dtype-categorical",
+    "round_series",
+    "parquet",
+    "to_dummies",
+    "is_in",
+    "temporal",
+    "cross_join",
+    "dtype-date",
+    "regex",
+    "strings",
+    "dtype-datetime",
+], rev = "cbdb9b" }
 policy-styx-lib = { path = "policy-styx-lib", default-features = false }
 policy-styx-proto = { path = "policy-styx-proto" }
 tdx = { version = "0.1.0", git = "https://github.com/hiroki-chen/tdx-attestation-sdk.git" }
