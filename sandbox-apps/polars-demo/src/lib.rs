@@ -10,7 +10,8 @@ use chrono::NaiveDate;
 use coxfitter::{CoxPHFitter, CoxPHFitterArgs, CoxPHResults};
 use polars::io::mmap::MmapBytesReader;
 use polars::prelude::*;
-use policy_styx_lib::types::PcdWasmPtr;
+use policy_styx_lib::data::PcdDataset;
+use policy_styx_lib::types::PcdWasmRawPtr;
 use uuid::Uuid;
 
 mod consts;
@@ -28,24 +29,12 @@ static PCD_RUNTIME_CTX: OnceLock<PcdRuntimeCtx> = OnceLock::new();
 /// A unique session ID for the current runtime context.
 static SESSION_ID: OnceLock<Uuid> = OnceLock::new();
 
-// #[link(wasm_import_module = "pcd_host_api")]
+#[link(wasm_import_module = "pcd_host_api")]
 extern "C" {
     // Get the target data.
-    fn pcd_dataset_access(
-        ctx: i64,
-        session_id: *const u8,
-        session_len: u32,
-        data_uuid: *const u8,
-        buf: *mut u8,
-        buf_len: u32,
-    ) -> i32;
+    fn pcd_dataset_data_access(data_uuid: PcdWasmRawPtr) -> PcdWasmRawPtr;
     // Output the target data.
-    fn pcd_dataset_release(
-        ctx: i64,
-        session_id: *const u8,
-        session_len: u32,
-        data_uuid: *const u8,
-    ) -> i32;
+    // fn pcd_dataset_release(session_id: *const u8, session_len: u32, data_uuid: *const u8) -> i32;
 }
 
 #[no_mangle]
@@ -57,7 +46,7 @@ pub extern "C" fn allocate(size: usize) -> *mut u8 {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn deallocate(ptr: PcdWasmPtr) {
+pub unsafe extern "C" fn deallocate(ptr: PcdWasmRawPtr) {
     let len = (ptr & 0xFFFFFFFF) as usize; // Extract the length part
     let ptr = (ptr >> 32) as *mut u8; // Extract the pointer part
 
@@ -70,7 +59,7 @@ pub unsafe extern "C" fn deallocate(ptr: PcdWasmPtr) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn set_session_id(session_id: PcdWasmPtr) {
+pub unsafe extern "C" fn set_session_id(session_id: PcdWasmRawPtr) {
     let session_id_len = (session_id & 0xFFFFFFFF) as usize; // Extract the length part
     let session_id_ptr = (session_id >> 32) as *const u8; // Extract the pointer part
 
@@ -87,7 +76,7 @@ pub unsafe extern "C" fn set_session_id(session_id: PcdWasmPtr) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn entry(ctx: i64, params: PcdWasmPtr) -> i32 {
+pub unsafe extern "C" fn entry(params: PcdWasmRawPtr) -> PcdWasmRawPtr {
     let param_ptr = params >> 32;
     let param_len = params & 0xFFFFFFFF;
 
@@ -96,7 +85,58 @@ pub unsafe extern "C" fn entry(ctx: i64, params: PcdWasmPtr) -> i32 {
         .map_err(|e| anyhow!("Failed to deserialize params: {}", e))
         .unwrap();
 
-    let f = pcd_dataset_access;
+    let data_uuid = params
+        .get("data_uuid")
+        .ok_or_else(|| anyhow!("Missing 'data_uuid' in params"))
+        .and_then(|v| {
+            if v.len() != 16 {
+                Err(anyhow!("Invalid UUID length"))
+            } else {
+                Ok(Uuid::from_slice(v).unwrap())
+            }
+        })
+        .unwrap();
+
+    let uuid_raw_ptr = data_uuid.as_bytes().as_ptr() as u64;
+    let uuid_len = data_uuid.as_bytes().len() as u64;
+    let data = pcd_dataset_data_access((uuid_raw_ptr << 32) | uuid_len);
+    let data_len = (data & 0xFFFFFFFF) as usize; // Extract the length part
+    let data_ptr = (data >> 32) as *const u8; // Extract
+
+    if data_ptr.is_null() || data_len == 0 {
+        println!("[Sandbox] Invalid data access for UUID: {}", data_uuid);
+
+        return 0; // Invalid data access
+    }
+
+    let data_bytes = std::slice::from_raw_parts(data_ptr, data_len);
+    let data = bincode::deserialize::<PcdDataset>(data_bytes)
+        .map_err(|e| anyhow!("Failed to deserialize dataset: {}", e))
+        .unwrap();
+
+    println!("[Sandbox] Processing dataset with UUID: {}", data_uuid);
+
+    let data_inner = bincode::deserialize::<Vec<Vec<u8>>>(&data.payload_ptr.payload)
+        .map_err(|e| anyhow!("Failed to deserialize dataset payload: {}", e))
+        .unwrap();
+
+    println!("[Sandbox] Dataset data count: {}", data.data_count);
+
+    let data_inner = data_inner
+        .into_iter()
+        .map(|data| {
+            let cursor = Cursor::new(data);
+            IpcReader::new(cursor)
+                .finish()
+                .map_err(|e| anyhow!("Failed to read IPC data: {}", e))
+        })
+        .collect::<Result<Vec<_>>>()
+        .unwrap();
+
+    println!(
+        "[Sandbox] Loaded {} DataFrames from dataset",
+        data_inner.len()
+    );
 
     0
 }

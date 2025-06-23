@@ -4,8 +4,8 @@ use wasmtime::Result;
 
 use crate::app::PcdWasmRuntime;
 use crate::crypto::pcd_crypto_backend_aes_gcm_decrypt;
-use crate::data::{PcdDataset, PcdEncData};
-use crate::types::PcdWasmPtr;
+use crate::data::{PcdDataset, PcdEncData, PcdPayload};
+use crate::types::{PcdWasmPtr, PcdWasmRawPtr};
 
 impl PcdWasmRuntime {
     /// Add a new data to the dataset.
@@ -21,7 +21,7 @@ impl PcdWasmRuntime {
         session_id: &Uuid,
         input_data: PcdEncData,
     ) -> Result<Uuid> {
-        let (app_idx, plaintext) = self.pcd_dataset_prepare(session_id, &input_data)?;
+        let (_, plaintext) = self.pcd_dataset_prepare(session_id, &input_data)?;
 
         // Pack the plaintext into a payload.
         let payload = bincode::deserialize(&plaintext)?;
@@ -36,7 +36,7 @@ impl PcdWasmRuntime {
         let dataset_bytes = bincode::serialize(&dataset)?;
 
         // Allocate the memory and write to it.
-        let ptr = self.write_memory(Some(app_idx), &dataset_bytes)?;
+        let ptr = self.write_memory(None, &dataset_bytes)?;
 
         // add to the policy engine.
         let func = {
@@ -48,14 +48,17 @@ impl PcdWasmRuntime {
 
             policy_engine
                 .instance
-                .get_typed_func::<PcdWasmPtr, PcdWasmPtr>(&mut self.store, "pcd_dataset_add_data")
+                .get_typed_func::<PcdWasmRawPtr, PcdWasmRawPtr>(
+                    &mut self.store,
+                    "pcd_dataset_add_data",
+                )
                 .map_err(|_| anyhow::anyhow!("Function 'pcd_dataset_add_data' not found"))?
         };
 
-        let fatptr = func.call(&mut self.store, ptr)?;
+        let fatptr = func.call(&mut self.store, ptr.into())?;
 
         // Read the result back from the WASM module.
-        let result = self.read_memory(Some(app_idx), fatptr)?;
+        let result = self.read_memory(None, fatptr.into())?;
         if result.len() != 16 {
             return Err(anyhow::anyhow!(
                 "Invalid result length: expected 16, got {}",
@@ -89,9 +92,10 @@ impl PcdWasmRuntime {
             anyhow::anyhow!("Session does not have an associated application index")
         })?;
         let key = &session.key;
-        let nonce = &input_data.encrypted_payload[..input_data.encrypted_payload.len() - 16];
-        let plaintext =
-            pcd_crypto_backend_aes_gcm_decrypt(&input_data.encrypted_payload, key, nonce)?;
+        let nonce = &input_data.encrypted_payload[input_data.encrypted_payload.len() - 12..];
+        let encrypted_data =
+            &input_data.encrypted_payload[..input_data.encrypted_payload.len() - 12];
+        let plaintext = pcd_crypto_backend_aes_gcm_decrypt(encrypted_data, key, nonce)?;
         Ok((app_idx, plaintext))
     }
 
@@ -133,18 +137,30 @@ impl PcdWasmRuntime {
             .ok_or_else(|| anyhow!("Memory not found"))?;
 
         // Call the guest's allocate function to get the pointer to a suitable memory block.
-        let ptr = allocate_fn.call(&mut self.store, data.len() as _)? as usize;
-        memory.write(&mut self.store, ptr, data)?;
+        let ptr = allocate_fn.call(&mut self.store, data.len() as _)?;
 
-        Ok(ptr as _)
+        if ptr == 0 {
+            return Err(anyhow!("Failed to allocate memory in Wasm app"));
+        }
+        if ptr > memory.data_size(&self.store) as u32 {
+            return Err(anyhow!("Allocated pointer is out of bounds"));
+        }
+
+        memory.write(&mut self.store, ptr as _, data)?;
+
+        log::info!(
+            "[Host] Wrote {} bytes in Wasm app #{:?} at address 0x{:x}",
+            data.len(),
+            app_idx,
+            ptr
+        );
+
+        Ok(PcdWasmPtr::new(ptr as u32, data.len() as u32))
     }
 
     pub fn read_memory(&mut self, app_idx: Option<usize>, ptr: PcdWasmPtr) -> Result<Vec<u8>> {
         let lock = self.store.data().policy_engine.clone();
         let policy_engine = lock.read().unwrap();
-
-        let len = ptr & 0xFFFFFFFF;
-        let ptr = ptr << 32;
 
         let app = match app_idx {
             Some(app_idx) => self
@@ -161,19 +177,8 @@ impl PcdWasmRuntime {
             .get_memory(&mut self.store, "memory")
             .ok_or_else(|| anyhow!("Memory not found"))?;
 
-        let mut buffer = vec![];
-
-        memory.read(&self.store, ptr as usize, &mut buffer)?;
-        if buffer.len() < len as usize {
-            return Err(anyhow!(
-                "Read memory length {} is less than expected {}",
-                buffer.len(),
-                len
-            ));
-        }
-
-        // Return only the requested length of data.
-        Ok(buffer[..len as usize].to_vec())
+        ptr.read(&memory, &mut self.store)
+            .map_err(|e| anyhow!("Failed to read memory: {}", e))
     }
 
     /// After using the string in Wasm, the host should deallocate the memory to prevent leaks.
@@ -190,8 +195,6 @@ impl PcdWasmRuntime {
         let lock = self.store.data().policy_engine.clone();
         let policy_engine = lock.read().unwrap();
 
-        let len = ptr & 0xFFFFFFFF;
-
         let app = match app_idx {
             Some(app_idx) => self
                 .app_registry
@@ -204,16 +207,63 @@ impl PcdWasmRuntime {
 
         let deallocate_fn = app
             .instance
-            .get_typed_func::<PcdWasmPtr, ()>(&mut self.store, "deallocate")
+            .get_typed_func::<PcdWasmRawPtr, ()>(&mut self.store, "deallocate")
             .map_err(|e| anyhow!("Failed to find 'deallocate' function: {}", e))?;
 
-        deallocate_fn.call(&mut self.store, ptr)?;
+        deallocate_fn.call(&mut self.store, ptr.into())?;
 
         println!(
             "[Host] Deallocated {} bytes in Wasm app #{:?} at address {}",
-            len, app_idx, ptr
+            ptr.len(),
+            app_idx,
+            ptr.ptr()
         );
 
         Ok(())
     }
+}
+
+///  Packs the data into a `PcdEncData` structure for further processing by the WASM module.
+pub fn pcd_dataset_pack_data(data: &[u8], key: &[u8]) -> Result<PcdEncData> {
+    if key.len() != 32 {
+        return Err(anyhow::anyhow!("Key must be 32 bytes long"));
+    }
+
+    let pcd_payload = PcdPayload {
+        payload: data.to_vec(),
+        ..Default::default()
+    };
+
+    let data = bincode::serialize(&pcd_payload)
+        .map_err(|e| anyhow::anyhow!("Failed to serialize PcdPayload: {}", e))?;
+
+    // Encrypt the data using AES-GCM.
+    let mut encrypted_payload = crate::crypto::pcd_crypto_backend_aes_gcm_encrypt(&data, key)?;
+
+    println!("The nonce is : {:?}", encrypted_payload.1);
+
+    let enc_data = PcdEncData {
+        encrypted_payload: {
+            encrypted_payload.0.extend_from_slice(&encrypted_payload.1); // Append nonce
+            encrypted_payload.0
+        },
+        owner_id: Default::default(),
+        protocol_version: Default::default(),
+    };
+
+    Ok(enc_data)
+}
+
+pub fn pcd_dataset_pack_data_multiple<I, T>(data: I, key: &[u8]) -> Result<PcdEncData>
+where
+    I: IntoIterator<Item = T>,
+    T: AsRef<[u8]>,
+{
+    let mut packed_data = vec![];
+
+    data.into_iter().for_each(|chunk| {
+        packed_data.extend_from_slice(chunk.as_ref());
+    });
+
+    pcd_dataset_pack_data(&packed_data, key)
 }

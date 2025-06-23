@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, LazyLock, Mutex};
 
 use policy_styx_lib::data::PcdDataset;
-use policy_styx_lib::types::PcdWasmPtr;
+use policy_styx_lib::types::{PcdWasmPtr, PcdWasmRawPtr};
 use uuid::Uuid;
 
 type DataRegistry = HashMap<Uuid, PcdDataset>;
@@ -13,15 +13,13 @@ static DATA_REGISTRY: LazyLock<Arc<Mutex<DataRegistry>>> =
     LazyLock::new(|| Arc::new(Mutex::new(DataRegistry::new())));
 
 #[no_mangle]
-pub unsafe extern "C" fn pcd_dataset_add_data(input_data: PcdWasmPtr) -> i64 {
-    let input_data_len = (input_data & 0xFFFFFFFF) as usize; // Extract the length part
-    let input_data = (input_data >> 32) as *const u8; // Extract the pointer part
+pub unsafe extern "C" fn pcd_dataset_add_data(input_data: PcdWasmRawPtr) -> i64 {
+    let ptr = PcdWasmPtr::from(input_data);
 
-    if input_data.is_null() || input_data_len == 0 {
-        return -1; // Invalid input
-    }
+    println!("[Sandbox] Adding data to dataset...");
+    println!("[Sandbox] Input data pointer: {:?}", ptr);
 
-    let input_data = std::slice::from_raw_parts(input_data, input_data_len as usize);
+    let input_data = std::slice::from_raw_parts(ptr.ptr() as _, ptr.len() as usize);
     let input_data: PcdDataset = match bincode::deserialize(input_data) {
         Ok(data) => data,
         Err(_) => return -1, // Deserialization failed
@@ -49,21 +47,19 @@ pub extern "C" fn allocate(size: usize) -> *mut u8 {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn deallocate(ptr: PcdWasmPtr) {
-    let len = (ptr & 0xFFFFFFFF) as usize; // Extract the length part
-    let ptr = (ptr >> 32) as *mut u8; // Extract the pointer part
+pub unsafe extern "C" fn deallocate(ptr: PcdWasmRawPtr) {
+    let ptr = PcdWasmPtr::from(ptr);
 
-    if ptr.is_null() || len == 0 {
+    if ptr.is_null() {
         return; // Nothing to deallocate
     }
 
-    // SAFETY: We assume that the pointer is valid and was allocated by this module.
-    let _ = Vec::from_raw_parts(ptr, len, len); // This will deallocate the memory
+    let _ = Vec::from_raw_parts(ptr.ptr() as *mut u8, ptr.len() as usize, ptr.len() as usize);
 }
 
 // --------- Data Access APIs --------- //
 #[no_mangle]
-pub unsafe extern "C" fn pcd_dataset_data_access(data_uuid: PcdWasmPtr) -> PcdWasmPtr {
+pub unsafe extern "C" fn pcd_dataset_data_access(data_uuid: PcdWasmRawPtr) -> PcdWasmRawPtr {
     let data_uuid_len = (data_uuid & 0xFFFFFFFF) as usize; // Extract the length part
     let data_uuid = data_uuid >> 32; // Extract the UUID part from the PcdWasmPtr
 
@@ -93,13 +89,13 @@ pub unsafe extern "C" fn pcd_dataset_data_access(data_uuid: PcdWasmPtr) -> PcdWa
                     Err(_) => return 0, // Serialization failed
                 };
 
-                let dataset_len = dataset_bytes.len() as u32;
-                let dataset_ptr = dataset_bytes.as_ptr() as PcdWasmPtr;
+                let dataset_len = dataset_bytes.len() as PcdWasmRawPtr;
+                let dataset_ptr = dataset_bytes.as_ptr() as PcdWasmRawPtr;
 
                 std::mem::forget(dataset_bytes); // Prevent deallocation of the vector: the caller must handle de-allocation!
 
                 // Return the pointer and length as a FAT pointer
-                dataset_ptr << 32 | dataset_len as PcdWasmPtr
+                dataset_ptr << 32 | dataset_len
             } else {
                 0 // Dataset not found
             }
@@ -109,6 +105,6 @@ pub unsafe extern "C" fn pcd_dataset_data_access(data_uuid: PcdWasmPtr) -> PcdWa
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn pcd_dataset_data_release(data_uuid: PcdWasmPtr) -> PcdWasmPtr {
+pub unsafe extern "C" fn pcd_dataset_data_release(data_uuid: PcdWasmRawPtr) -> PcdWasmRawPtr {
     todo!()
 }

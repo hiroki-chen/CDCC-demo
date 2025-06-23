@@ -84,6 +84,7 @@ impl PcdWasmRuntimeBuilder {
 
 /// The application structure.
 pub struct PcdApp {
+    pub name: String,
     /// The application module.
     #[allow(dead_code)]
     pub(crate) module: PcdModule,
@@ -189,17 +190,35 @@ impl PcdWasmRuntime {
         let hash = pcd_crypto_backend_sha256_hash_buffer(&buffer)?;
         let app_module = PcdModule::from_binary(&self.store.engine(), &buffer)?;
         let app_instance = self.linker.instantiate(&mut self.store, &app_module)?;
-        let app = PcdApp::new(app_module, app_instance, hash);
+        let app = PcdApp::new(path.into(), app_module, app_instance, hash);
 
         Ok(app)
+    }
+
+    /// This function loads a given testing key and data encrypted by that key to
+    /// build a predefined state to see if the workflow works as expected.
+    pub fn load_predefined_session(&mut self, session_uuid: Uuid, key: &[u8]) -> Result<()> {
+        let app_idx = Some(0); // Assuming the first app is the one we want to use.
+
+        let session = Session {
+            id: session_uuid,
+            app_idx,
+            key: key.to_vec(),
+        };
+
+        self.store.data_mut().sessions.clear();
+        self.store.data_mut().sessions.insert(session.id, session);
+
+        Ok(())
     }
 }
 
 impl PcdApp {
     /// Create a new application.
     #[inline]
-    pub fn new(module: PcdModule, instance: PcdInstance, hash: Vec<u8>) -> Self {
+    pub fn new(name: String, module: PcdModule, instance: PcdInstance, hash: Vec<u8>) -> Self {
         Self {
+            name,
             module,
             instance,
             hash,

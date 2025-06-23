@@ -14,15 +14,13 @@ use p256::PublicKey;
 use policy_styx_lib::app::{PcdWasmRuntime, Session};
 #[cfg(all(not(feature = "mock"), feature = "platform-tdx"))]
 use policy_styx_lib::attestation;
-use policy_styx_lib::proxy;
-use policy_styx_lib::types::PcdWasmPtr;
+use policy_styx_lib::types::PcdWasmRawPtr;
 use serde::{Deserialize, Serialize};
 use serde_with::base64::Base64;
 use serde_with::serde_as;
 use tokio::sync::Mutex;
 use tower_http::cors::{self, AllowOrigin, CorsLayer};
 use uuid::Uuid;
-use wasi_common::sync::WasiCtxBuilder;
 
 #[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -341,7 +339,7 @@ async fn policy_styx_compute(
 
         sessions
             .rt
-            .execute_typed_function::<PcdWasmPtr, ()>(idx, &request.entry, ptr)
+            .execute_typed_function::<PcdWasmRawPtr, ()>(idx, &request.entry, ptr.into())
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         let args =
