@@ -18,5 +18,5 @@ axum = "0.8.4"
 serde = { version = "1.0.219", features = ["derive"] }
 tower-http = { version = "0.6.6", features = ["cors"] }
 serde_with = { version = "3.12.0", features = ["base64"] }
-log = "0.4.27"
+log = { workspace = true }
 env_logger = "0.11.8"

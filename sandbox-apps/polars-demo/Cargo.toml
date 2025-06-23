@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-coxfitter = { git = "https://github.com/hiroki-chen/coxphfitter.git", rev = "d487d7e" }
+coxfitter = { git = "https://github.com/hiroki-chen/coxphfitter.git", rev = "e474022" }
 anyhow = "1.0.95"
 chrono = { workspace = true }
 polars = { workspace = true }
