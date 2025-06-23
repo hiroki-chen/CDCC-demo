@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# Get the argument
+# Execute the script from the directory where it is invoked.
+pushd "$(pwd)" > /dev/null
+
+WASM_PROJECT="$3"
+# Replace `-` with `_` in the project name
+WASM_NAME="${WASM_PROJECT//-/_}"
+
+cargo build --target wasm32-wasip1 --release -p "$WASM_PROJECT"
+if [ $? -ne 0 ]; then
+    echo "Error: Cargo build failed for project '$WASM_PROJECT'."
+    exit 1
+fi
+
+# Get the output 
+
+SYMBOLS=$(wasm-objdump --section Import --details "target/wasm32-wasip1/release/${WASM_NAME}.wasm" | grep -w "env")
+if [ $? -eq 0 ]; then
+    echo "Error: The WASM file contains 'env' imports, which are not allowed."
+    echo "Please resolve these imports before proceeding."
+    echo "$SYMBOLS"
+
+    echo "The dependencies:"
+    cargo tree -p "$WASM_PROJECT" --target wasm32-wasip1
+    exit 1
+fi
+
+cp "target/wasm32-wasip1/release/${WASM_NAME}.wasm" "data/${WASM_NAME}.wasm"
+
+popd > /dev/null
