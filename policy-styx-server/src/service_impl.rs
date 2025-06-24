@@ -11,9 +11,10 @@ use axum::{Json, Router};
 use p256::ecdh::EphemeralSecret;
 use p256::elliptic_curve::rand_core::OsRng;
 use p256::PublicKey;
-use policy_styx_lib::app::{PcdWasmRuntime, Session};
+use policy_styx_lib::app::{PcdWasmRuntime, PcdWasmRuntimeBuilder, Session};
 #[cfg(all(not(feature = "mock"), feature = "platform-tdx"))]
 use policy_styx_lib::attestation;
+use policy_styx_lib::proxy;
 use policy_styx_lib::types::PcdWasmRawPtr;
 use serde::{Deserialize, Serialize};
 use serde_with::base64::Base64;
@@ -21,6 +22,7 @@ use serde_with::serde_as;
 use tokio::sync::Mutex;
 use tower_http::cors::{self, AllowOrigin, CorsLayer};
 use uuid::Uuid;
+use wasi_common::sync::WasiCtxBuilder;
 
 #[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -104,35 +106,22 @@ impl DerefMut for ServerState {
 }
 
 impl ServerState {
-    /// Registers the host bridge functions for the PCD WASM runtime.
-    ///
-    /// Since WASM modules cannot directly access the host environment, we need to register
-    /// the functions that allow the WASM module to access the PCD dataset. Upon module
-    /// instantiation, the host bridge functions will be imported.
-    fn register_host_bridge_functions(runtime: &mut PcdWasmRuntime) -> Result<(), StatusCode> {
-        // Register the host bridge functions for the PCD dataset.
-        // // These functions will be called by the WASM module to access the PCD dataset.
-        // runtime
-        //     .register_native_functions("pcd_data_access", proxy::pcd_dataset_data_access_host)
-        //     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        // runtime
-        //     .register_native_functions("pcd_data_release", proxy::pcd_dataset_data_release_host)
-        //     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-        Ok(())
-    }
-
     pub fn new() -> Result<Self> {
-        // let wasi_ctx = WasiCtxBuilder::new().inherit_stdio().build();
-        // let mut rt =
-        //     PcdWasmRuntime::new(wasi_ctx).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        // Self::register_host_bridge_functions(&mut rt)?;
-        // rt.load_policy_engine("./data/policy_engine.wasm")
-        //     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        let wasi_ctx = WasiCtxBuilder::new().inherit_stdio().build();
 
-        // Ok(ServerState { rt })
+        let mut rt = PcdWasmRuntimeBuilder::new()
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+            .with_host_function(
+                "pcd_dataset_data_access",
+                proxy::pcd_dataset_data_access_host,
+            )
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+            .build(wasi_ctx);
 
-        todo!()
+        rt.load_policy_engine("./data/policy_engine.wasm")
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        Ok(ServerState { rt })
     }
 }
 
