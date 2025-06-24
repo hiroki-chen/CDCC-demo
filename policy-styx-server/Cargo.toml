@@ -9,7 +9,6 @@ bincode = { workspace = true }
 dcap-rs = { workspace = true, optional = true }
 env_logger = "0.11.8"
 policy-styx-lib = { workspace = true, optional = true, features = [
-  "runtime",
   "platform-tdx",
 ] }
 log = "0.4.27"

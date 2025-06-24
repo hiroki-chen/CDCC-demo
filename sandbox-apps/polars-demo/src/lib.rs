@@ -127,7 +127,7 @@ pub unsafe extern "C" fn entry(params: PcdWasmRawPtr) -> PcdWasmRawPtr {
     // TODO [Upstream] Make `CoxPHResults` serializable.
     // Run the Cox analysis with the merged data.
     // TODO [Upstream ?] This introduces some CBLAS dependencies but not available in wasip1 environment.
-    // let res = run_cox_analysis_with_privacy(encoded_data).expect("Failed to run Cox analysis");
+    let res = run_cox_analysis_with_privacy(encoded_data).expect("Failed to run Cox analysis");
 
     0
 }
@@ -503,11 +503,7 @@ fn run_cox_analysis_with_privacy(combined_data: DataFrame) -> Result<CoxPHResult
     );
 
     // Ensure no infinite values or NaN.
-    let mut cox_data = drop_nans(cox_data, None).collect()?;
-
-    // for test purpose only
-    let mut f = std::fs::File::create("cox_data.parquet")?;
-    ParquetWriter::new(&mut f).finish(&mut cox_data)?;
+    let cox_data = drop_nans(cox_data, None).collect()?;
 
     // Fit Cox model with decreased penalizer to get more significant effects
     let args = CoxPHFitterArgs {

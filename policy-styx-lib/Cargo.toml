@@ -14,15 +14,17 @@ sha2 = { version = "0.10.8", default-features = false }
 serde = { version = "1.0.217", features = ["derive"] }
 tdx = { workspace = true, optional = true }
 uuid = { workspace = true }
-wasi-common = { version = "29.0.1", optional = true }
-wasmtime = { version = "29.0.1", features = ["runtime"], optional = true }
+
+# Add dependencies for non-wasm targets
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+wasi-common = { version = "29.0.1" }
+wasmtime = { version = "29.0.1", features = ["runtime"] }
 
 [dev-dependencies]
 env_logger = "0.11.8"
 
 [features]
-default = ["platform-tdx", "runtime"]
-runtime = ["wasmtime", "wasi-common"]
+default = ["platform-tdx"]
 platform-tdx = ["tdx", "dcap-rs", "libc"]
 
 # Add customized rust source file as test

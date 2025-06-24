@@ -303,6 +303,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "approx"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cab112f0a86d568ea0e627cc1d6be74a1e9cd55214684db5561995f6dad897c6"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "arbitrary"
 version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1315,6 +1324,8 @@ name = "coxfitter"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "lax",
+ "nalgebra",
  "ndarray",
  "ndarray-linalg",
  "ndarray_einsum_beta",
@@ -1324,9 +1335,11 @@ dependencies = [
 [[package]]
 name = "coxfitter"
 version = "0.1.0"
-source = "git+https://github.com/hiroki-chen/coxphfitter.git?rev=393ab2b#393ab2b244ad357382bb77b5bc9681efa8657a85"
+source = "git+https://github.com/hiroki-chen/coxphfitter.git?rev=29f8816#29f8816f3ae7024680414ba0cf3dbd094d2dff8b"
 dependencies = [
  "anyhow",
+ "lax",
+ "nalgebra",
  "ndarray",
  "ndarray-linalg",
  "ndarray_einsum_beta",
@@ -3253,12 +3266,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "nalgebra"
+version = "0.33.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26aecdf64b707efd1310e3544d709c5c0ac61c13756046aaaba41be5c4f66a3b"
+dependencies = [
+ "approx 0.5.1",
+ "matrixmultiply",
+ "nalgebra-macros",
+ "num-complex 0.4.6",
+ "num-rational 0.4.2",
+ "num-traits",
+ "simba",
+ "typenum",
+]
+
+[[package]]
+name = "nalgebra-macros"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "254a5372af8fc138e36684761d3c0cdb758a4410e938babcff1c860ce14ddbfc"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.101",
+]
+
+[[package]]
 name = "ndarray"
 version = "0.15.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "adb12d4e967ec485a5f71c6311fe28158e9d6f4bc4a447b474184d0f91a8fa32"
 dependencies = [
- "approx",
+ "approx 0.4.0",
  "cblas-sys",
  "libc",
  "matrixmultiply",
@@ -4088,7 +4128,7 @@ dependencies = [
  "anyhow",
  "bincode",
  "chrono",
- "coxfitter 0.1.0 (git+https://github.com/hiroki-chen/coxphfitter.git?rev=393ab2b)",
+ "coxfitter 0.1.0 (git+https://github.com/hiroki-chen/coxphfitter.git?rev=29f8816)",
  "polars",
  "policy-styx-lib",
  "uuid",
@@ -5170,6 +5210,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28d3b2b1366ec20994f1fd18c3c594f05c5dd4bc44d8bb0c1c632c8d6829481f"
 
 [[package]]
+name = "safe_arch"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96b02de82ddbe1b636e6170c21be622223aea188ef2e139be0a5b219ec215323"
+dependencies = [
+ "bytemuck",
+]
+
+[[package]]
 name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5420,6 +5469,19 @@ checksum = "77549399552de45a898a580c1b41d445bf730df867cc44e6c0233bbc4b8329de"
 dependencies = [
  "digest 0.10.7",
  "rand_core 0.6.4",
+]
+
+[[package]]
+name = "simba"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3a386a501cd104797982c15ae17aafe8b9261315b5d07e3ec803f2ea26be0fa"
+dependencies = [
+ "approx 0.5.1",
+ "num-complex 0.4.6",
+ "num-traits",
+ "paste",
+ "wide",
 ]
 
 [[package]]
@@ -6907,6 +6969,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "wide"
+version = "0.7.33"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ce5da8ecb62bcd8ec8b7ea19f69a51275e91299be594ea5cc6ef7819e16cd03"
+dependencies = [
+ "bytemuck",
+ "safe_arch",
+]
+
+[[package]]
 name = "wiggle"
 version = "29.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6970,7 +7042,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

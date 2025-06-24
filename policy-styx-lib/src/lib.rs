@@ -1,12 +1,12 @@
-#[cfg(feature = "runtime")]
+#[cfg(not(target_arch = "wasm32"))]
 pub mod app;
 
 pub mod crypto;
 pub mod data;
 
-#[cfg(feature = "runtime")]
+#[cfg(not(target_arch = "wasm32"))]
 pub mod dataset;
-#[cfg(feature = "runtime")]
+#[cfg(not(target_arch = "wasm32"))]
 pub mod proxy;
 
 pub mod policy;

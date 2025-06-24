@@ -1,13 +1,13 @@
 use uuid::Uuid;
-#[cfg(feature = "runtime")]
+#[cfg(not(target_arch = "wasm32"))]
 use wasmtime::{AsContext, AsContextMut, Instance, Memory, Module};
 
 pub type PcdResult<T> = anyhow::Result<T>;
 pub type PcdIdentity = Uuid;
 
-#[cfg(feature = "runtime")]
+#[cfg(not(target_arch = "wasm32"))]
 pub type PcdModule = Module;
-#[cfg(feature = "runtime")]
+#[cfg(not(target_arch = "wasm32"))]
 pub type PcdInstance = Instance;
 
 pub type PcdWasmRawPtr = u64;
@@ -45,14 +45,14 @@ impl PcdWasmPtr {
         self.ptr == 0 && self.len == 0
     }
 
-    #[cfg(feature = "runtime")]
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn read(&self, memory: &Memory, store: impl AsContext) -> PcdResult<Vec<u8>> {
         let mut buffer = vec![0; self.len as usize];
         memory.read(store, self.ptr as usize, &mut buffer)?;
         Ok(buffer)
     }
 
-    #[cfg(feature = "runtime")]
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn write(
         &self,
         memory: &mut Memory,
@@ -64,7 +64,7 @@ impl PcdWasmPtr {
             .map_err(|e| e.into())
     }
 
-    #[cfg(feature = "runtime")]
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn dealloc(&self, mut store: impl AsContextMut, instance: &PcdInstance) -> PcdResult<()> {
         let dealloc = instance
             .get_typed_func::<PcdWasmRawPtr, ()>(&mut store, "deallocate")
