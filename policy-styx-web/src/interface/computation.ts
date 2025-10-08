@@ -21,6 +21,7 @@ export interface AttestationReport {
 export interface ExecutionPayload {
   dataFile: File,
   programFile: File,
+  policyEngine: File,
   sessionId: string, // UUID
 }
 

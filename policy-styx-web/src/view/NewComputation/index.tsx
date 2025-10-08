@@ -268,7 +268,7 @@ const ComputationWizard = () => {
                                     onFileSelect={setPolicyEngine}
                                 />
 
-                                {dataFile && programFile && (
+                                {dataFile && programFile && policyEngine && (
                                     <div className="upload-action-container">
                                         {/* State 1: Ready to upload */}
                                         {uploadStatus === "idle" && (

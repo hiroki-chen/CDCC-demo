@@ -514,7 +514,12 @@ fn run_cox_analysis_with_privacy(combined_data: DataFrame) -> Result<CoxPHResult
         ..Default::default()
     };
     let cph = CoxPHFitter::new(args);
-    cph.fit(&cox_data)
+    let res = cph.fit(&cox_data)?;
+
+    println!("Cox analysis completed successfully: {:?}", res);
+
+    // Return the results
+    Ok(res)
 }
 
 #[cfg(test)]
@@ -560,7 +565,7 @@ mod test {
         let encoded_data = perform_imputation(&merged_data, &comorbidity_cols).unwrap();
 
         // Run the Cox analysis with the merged data.
-        let res = run_cox_analysis_with_privacy(merged_data);
+        let res = run_cox_analysis_with_privacy(encoded_data);
 
         assert!(res.is_ok(), "Cannot do cox analysis!");
 
