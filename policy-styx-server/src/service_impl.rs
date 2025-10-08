@@ -109,7 +109,7 @@ impl ServerState {
     pub fn new() -> Result<Self> {
         let wasi_ctx = WasiCtxBuilder::new().inherit_stdio().build();
 
-        let mut rt = PcdWasmRuntimeBuilder::new()
+        let rt = PcdWasmRuntimeBuilder::new()
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
             .with_host_function(
                 "pcd_dataset_data_access",
@@ -118,8 +118,7 @@ impl ServerState {
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
             .build(wasi_ctx);
 
-        rt.load_policy_engine("./data/policy_engine.wasm")
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        // Don't load policy engine globally - it will be loaded per-session
 
         Ok(ServerState { rt })
     }
@@ -153,14 +152,28 @@ async fn policy_styx_prepare_computation(
         return Err(StatusCode::NOT_FOUND); // Or appropriate error
     }
 
-    // --- Step 2: Perform the expensive operation ---
-    // Now that we've let go of any borrows from the check above, we can freely
-    // create a new mutable borrow for `load_new_application`.
+    // --- Step 2: Load policy engine and application ---
     let data_path = format!("./data/data-{session_id:?}");
     let program_path = format!("./data/program-{session_id:?}");
+    let policy_engine_path = format!("./data/policy_engine-{session_id:?}");
 
+    // Load the uploaded policy engine for this session
+    log::info!("Loading policy engine for session {}", session_id);
+    sessions
+        .rt
+        .load_policy_engine(&policy_engine_path)
+        .map_err(|e| {
+            log::error!(
+                "Failed to load policy engine for session {}: {}",
+                session_id,
+                e
+            );
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    // Load the computation program
     let app_idx = sessions
-        .rt // This creates a mutable borrow that ends right after this line.
+        .rt
         .load_new_application(&program_path)
         .map_err(|e| {
             log::error!(
