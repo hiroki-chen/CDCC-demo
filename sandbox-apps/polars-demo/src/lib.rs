@@ -85,7 +85,7 @@ pub unsafe extern "C" fn entry(params: PcdWasmRawPtr) -> PcdWasmRawPtr {
         .ok_or_else(|| anyhow!("Missing 'data_uuid' in params"))
         .and_then(|v| {
             if v.len() != 16 {
-                Err(anyhow!("Invalid UUID length"))
+                Err(anyhow!("Invalid UUID length: {v:?}"))
             } else {
                 Ok(Uuid::from_slice(v).unwrap())
             }

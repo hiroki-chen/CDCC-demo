@@ -72,10 +72,12 @@ struct PolicyStyxComputeRequest {
     args: HashMap<String, Vec<u8>>, // Arguments for the computation.
 }
 
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 struct PolicyStyxPrepareResponse {
-    data_uuid: String,
+    #[serde_as(as = "Base64")]
+    data_uuid: Vec<u8>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -224,7 +226,7 @@ async fn policy_styx_prepare_computation(
     log::info!("Data UUID for session {}: {}", session_id, data_uuid);
 
     Ok(PolicyStyxPrepareResponse {
-        data_uuid: data_uuid.to_string(),
+        data_uuid: data_uuid.as_bytes().to_vec(),
     })
 }
 

@@ -160,23 +160,16 @@ const ComputationWizard = () => {
                 return;
             }
 
-            // Get the data UUID from the response
+            // Get the data UUID from the response (base64 encoded bytes)
             const prepareResult = await response.json();
-            const dataUuidString = prepareResult.dataUuid;
-            console.log("✅ Computation context prepared, data UUID:", dataUuidString);
-
-            // Convert UUID string to bytes
-            const dataUuidBytes = dataUuidString.match(/.{1,2}/g)
-                ?.map((byte: string) => parseInt(byte, 16)) || [];
-            const dataUuid = new Uint8Array(dataUuidBytes.length === 0 
-                ? Array.from({ length: 16 }, (_, i) => {
-                    const hex = dataUuidString.replace(/-/g, '');
-                    return parseInt(hex.substr(i * 2, 2), 16);
-                })
-                : dataUuidBytes
-            );
-
-            console.log("🚀 Starting computation with data UUID:", dataUuidString);
+            const dataUuidBase64 = prepareResult.dataUuid;
+            
+            // Decode base64 to get raw UUID bytes (16 bytes)
+            const dataUuid = Uint8Array.from(atob(dataUuidBase64), c => c.charCodeAt(0));
+            
+            console.log("✅ Computation context prepared, data UUID (16 bytes):", dataUuid);
+            console.log("🚀 Starting computation with data UUID");
+            
             const args = { data_uuid: dataUuid };
             const result = await doCompute(client, "entry", args);
 
