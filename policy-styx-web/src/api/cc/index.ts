@@ -188,6 +188,12 @@ export async function doCompute(
   entry: string,
   args: Record<string, Uint8Array>,
 ): Promise<Response> {
+  // Convert Uint8Array values to regular arrays for JSON serialization
+  const serializedArgs: Record<string, number[]> = {};
+  for (const [key, value] of Object.entries(args)) {
+    serializedArgs[key] = Array.from(value);
+  }
+
   const response = await fetch(`${compute_backend_url}/compute`, {
     method: "POST",
     headers: {
@@ -196,7 +202,7 @@ export async function doCompute(
     body: JSON.stringify({
       sessionId: client.sessionId,
       entry: entry,
-      args: args,
+      args: serializedArgs,
     }),
   });
 

@@ -134,9 +134,7 @@ impl PcdWasmRuntime {
     pub fn load_policy_engine(&mut self, path: &str) -> Result<()> {
         let policy_app = self.load_wasm_module(path)?;
         let mut policy_engine = self.store.data().policy_engine.write().unwrap();
-        if policy_engine.is_some() {
-            return Err(anyhow!("Policy engine is already loaded"));
-        }
+        // Replace the old policy engine if one exists (lazy approach)
         *policy_engine = Some(policy_app);
 
         Ok(())
