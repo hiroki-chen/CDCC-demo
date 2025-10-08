@@ -171,6 +171,14 @@ async fn policy_styx_prepare_computation(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
+    // --- Step 3: Update the session state BEFORE adding data ---
+    // Set app_idx first because pcd_dataset_add_data needs it
+    sessions
+        .get_mut(&session_id)
+        .ok_or(StatusCode::NOT_FOUND)?
+        .app_idx
+        .replace(app_idx);
+
     // Load encrypted data (do NOT deserialize - pass as-is to WASM)
     let encrypted_data = fs::read(&data_path)
         .map_err(|e| {
@@ -187,16 +195,6 @@ async fn policy_styx_prepare_computation(
             log::error!("Failed to add encrypted data: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
-
-    // --- Step 3: Update the session state ---
-    // The borrow for `load_new_application` is now finished. We can start a new
-    // borrow to update the session. We can use .unwrap() because we already
-    // confirmed the session exists.
-    sessions
-        .get_mut(&session_id)
-        .ok_or(StatusCode::NOT_FOUND)?
-        .app_idx
-        .replace(app_idx);
 
     Ok(())
 }
