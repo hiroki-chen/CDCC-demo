@@ -73,9 +73,21 @@ struct PolicyStyxComputeRequest {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+struct PolicyStyxPrepareResponse {
+    data_uuid: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 struct PolicyStyxUploadResponse {}
 
 impl IntoResponse for PolicyStyxAttestationResponse {
+    fn into_response(self) -> Response {
+        (StatusCode::OK, Json(self)).into_response()
+    }
+}
+
+impl IntoResponse for PolicyStyxPrepareResponse {
     fn into_response(self) -> Response {
         (StatusCode::OK, Json(self)).into_response()
     }
@@ -129,7 +141,7 @@ type Sessions = Arc<Mutex<ServerState>>;
 async fn policy_styx_prepare_computation(
     State(sessions): State<Sessions>,
     Json(request): Json<PolicyStyxPrepareRequest>,
-) -> Result<Json<serde_json::Value>, StatusCode> {
+) -> Result<PolicyStyxPrepareResponse, StatusCode> {
     let session_id = request.session_id;
 
     log::info!("Preparing computation for session {}", session_id);
@@ -211,9 +223,9 @@ async fn policy_styx_prepare_computation(
 
     log::info!("Data UUID for session {}: {}", session_id, data_uuid);
 
-    Ok(Json(serde_json::json!({
-        "dataUuid": data_uuid.to_string()
-    })))
+    Ok(PolicyStyxPrepareResponse {
+        data_uuid: data_uuid.to_string(),
+    })
 }
 
 async fn policy_styx_remote_attestation(

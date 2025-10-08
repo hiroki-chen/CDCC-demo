@@ -161,17 +161,7 @@ const ComputationWizard = () => {
             }
 
             // Get the data UUID from the response
-            const responseText = await response.text();
-            console.log("Prepare response body:", responseText);
-            
-            if (!responseText) {
-                console.error("Empty response from prepare endpoint");
-                alert("Server returned empty response. Please restart the backend server.");
-                setComputationStatus("idle");
-                return;
-            }
-            
-            const prepareResult = JSON.parse(responseText);
+            const prepareResult = await response.json();
             const dataUuidString = prepareResult.dataUuid;
             console.log("✅ Computation context prepared, data UUID:", dataUuidString);
 
