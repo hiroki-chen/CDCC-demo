@@ -386,27 +386,38 @@ async fn policy_styx_compute(
 
         let idx = session.app_idx.ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
 
-        // Let the module knows its sesssion.
-        let ptr = sessions
+        // Step 1: Set the session ID in the WASM module
+        log::info!("Setting session ID for WASM module");
+        let session_id_ptr = sessions
             .rt
             .write_memory(Some(idx), request.session_id.as_bytes())
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         sessions
             .rt
-            .execute_typed_function::<PcdWasmRawPtr, ()>(idx, &request.entry, ptr.into())
+            .execute_typed_function::<PcdWasmRawPtr, ()>(idx, "set_session_id", session_id_ptr.into())
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+        // Step 2: Prepare and write the args
+        log::info!("Writing computation arguments to WASM");
         let args =
             bincode::serialize(&request.args).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        let ptr = sessions
+        let args_ptr = sessions
             .rt
             .write_memory(Some(idx), &args)
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+        // Step 3: Call the entry function with args
+        log::info!("Calling entry function: {}", request.entry);
+        let result_ptr = sessions
+            .rt
+            .execute_typed_function::<PcdWasmRawPtr, PcdWasmRawPtr>(idx, &request.entry, args_ptr.into())
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        // Step 4: Read the result
         let ret = sessions
             .rt
-            .read_memory(Some(idx), ptr)
+            .read_memory(Some(idx), result_ptr.into())
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
         Ok(ret)

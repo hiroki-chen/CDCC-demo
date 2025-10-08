@@ -69,9 +69,12 @@ pub unsafe extern "C" fn set_session_id(session_id: PcdWasmRawPtr) {
 
 #[no_mangle]
 pub unsafe extern "C" fn entry(params: PcdWasmRawPtr) -> PcdWasmRawPtr {
+    println!("[Polars Demo] 🚀 Starting Cox Proportional Hazards analysis");
+    
     let param_ptr = params >> 32;
     let param_len = params & 0xFFFFFFFF;
 
+    println!("[Polars Demo] 📦 Deserializing parameters ({} bytes)", param_len);
     let params = std::slice::from_raw_parts(param_ptr as *const u8, param_len as usize);
     let params: HashMap<String, Vec<u8>> = bincode::deserialize(params)
         .map_err(|e| anyhow!("Failed to deserialize params: {}", e))
@@ -89,6 +92,7 @@ pub unsafe extern "C" fn entry(params: PcdWasmRawPtr) -> PcdWasmRawPtr {
         })
         .unwrap();
 
+    println!("[Polars Demo] 🔑 Requesting data access for UUID: {}", data_uuid);
     let uuid_raw_ptr = data_uuid.as_bytes().as_ptr() as u64;
     let uuid_len = data_uuid.as_bytes().len() as u64;
     let data = pcd_dataset_data_access((uuid_raw_ptr << 32) | uuid_len);
@@ -96,38 +100,42 @@ pub unsafe extern "C" fn entry(params: PcdWasmRawPtr) -> PcdWasmRawPtr {
     let data_ptr = (data >> 32) as *const u8; // Extract
 
     if data_ptr.is_null() || data_len == 0 {
-        println!("[Sandbox] Invalid data access for UUID: {}", data_uuid);
-
+        println!("[Polars Demo] ❌ Invalid data access for UUID: {}", data_uuid);
         return 0; // Invalid data access
     }
 
+    println!("[Polars Demo] ✅ Data access granted ({} bytes)", data_len);
     let data_bytes = std::slice::from_raw_parts(data_ptr, data_len);
     let data = bincode::deserialize::<PcdDataset>(data_bytes)
         .map_err(|e| anyhow!("Failed to deserialize dataset: {}", e))
         .unwrap();
 
-    println!("[Sandbox] Processing dataset with UUID: {}", data_uuid);
-
+    println!("[Polars Demo] 📊 Deserializing dataset payload");
     let data_inner = bincode::deserialize::<PcdPackedData>(&data.payload_ptr.payload)
         .map_err(|e| anyhow!("Failed to deserialize dataset payload: {}", e))
         .unwrap();
 
-    println!("[Sandbox] Dataset data count: {}", data_inner.len());
+    println!("[Polars Demo] 📋 Dataset contains {} tables", data_inner.len());
+    for (table_name, table_bytes) in data_inner.iter() {
+        println!("[Polars Demo]   - {} ({} bytes)", table_name, table_bytes.len());
+    }
 
     TABLE_REGISTRY.get_or_init(move || data_inner);
 
+    println!("[Polars Demo] 🔄 Merging healthcare data tables...");
     let merged_table = merge_healthcare_data(&TABLE_REGISTRY.get().unwrap())
         .expect("Failed to merge healthcare data");
+    println!("[Polars Demo] ✅ Data merge complete - shape: {:?}", merged_table.shape());
 
+    println!("[Polars Demo] 🔧 Performing data imputation...");
     let comorbidity_cols = CHARLSON_COVARIATES.iter().map(|&s| s).collect::<Vec<_>>();
     let encoded_data = perform_imputation(&merged_table, &comorbidity_cols).unwrap();
+    println!("[Polars Demo] ✅ Imputation complete - encoded data shape: {:?}", encoded_data.shape());
 
-    println!("[Sandbox] Encoded data shape: {:?}", encoded_data.shape());
-
-    // TODO [Upstream] Make `CoxPHResults` serializable.
-    // Run the Cox analysis with the merged data.
-    // TODO [Upstream ?] This introduces some CBLAS dependencies but not available in wasip1 environment.
+    println!("[Polars Demo] 📈 Running Cox Proportional Hazards regression...");
     let res = run_cox_analysis_with_privacy(encoded_data).expect("Failed to run Cox analysis");
+    println!("[Polars Demo] 🎉 Cox analysis completed successfully!");
+    println!("[Polars Demo] 📊 Results summary: {:#?}", res);
 
     0
 }
