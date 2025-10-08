@@ -93,8 +93,6 @@ impl PcdWasmRuntime {
 
         println!("[Host] Added data to dataset with UUID: {}", uuid);
 
-        // Deallocate the memory used for the dataset.
-        self.deallocate_in_app_memory(None, ptr)?;
         Ok(uuid)
     }
 
