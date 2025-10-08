@@ -88,35 +88,46 @@ const ComputationWizard = () => {
         // Set status to pending to show a loading state
         setUploadStatus("pending");
 
-        // Pack the files and session info into a payload.
-        const payload = {
-            dataFile: dataFile,
-            programFile: programFile,
-            policyEngine: policyEngine,
-            sessionId: client.sessionId,
-        };
+        try {
+            // Pack the files and session info into a payload.
+            const payload = {
+                dataFile: dataFile,
+                programFile: programFile,
+                policyEngine: policyEngine,
+                sessionId: client.sessionId,
+            };
 
-        const response = await uploadFiles(client, payload);
+            const response = await uploadFiles(client, payload);
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error(
-                `File upload failed with status ${response.status}:`,
-                errorText,
-            );
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(
+                    `File upload failed with status ${response.status}:`,
+                    errorText,
+                );
 
+                setIsFileUploadModalOpen(true);
+                setFileUploadModalContent(
+                    `File upload failed with status ${response.status}: ${errorText}`,
+                );
+
+                setUploadStatus("idle");
+
+                return;
+            }
+
+            console.log("✅ File upload succeeded:", response);
+            setUploadStatus("succeeded");
+        } catch (error) {
+            console.error("🔥 Error during file upload:", error);
+            
             setIsFileUploadModalOpen(true);
             setFileUploadModalContent(
-                `File upload failed with status ${response.status}: ${errorText}`,
+                `File upload failed: ${error}`,
             );
 
             setUploadStatus("idle");
-
-            return;
         }
-
-        console.log("✅ File upload succeeded:", response);
-        setUploadStatus("succeeded");
     };
     const handleStartComputation = async () => {
         if (!dataFile || !programFile || !attestationReport) {

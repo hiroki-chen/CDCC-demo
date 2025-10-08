@@ -3,7 +3,7 @@ use std::fs;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
-use axum::extract::{Multipart, State};
+use axum::extract::{DefaultBodyLimit, Multipart, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response, Result};
 use axum::routing::post;
@@ -415,6 +415,7 @@ pub async fn serve(addr: &str, port: &str) -> Result<(), Box<dyn std::error::Err
         .route("/api/v1/attestation", post(policy_styx_remote_attestation))
         .route("/api/v1/prepare", post(policy_styx_prepare_computation))
         .route("/api/v1/compute", post(policy_styx_compute))
+        .layer(DefaultBodyLimit::max(100 * 1024 * 1024)) // 100 MB limit
         .layer(cors)
         .with_state(Arc::new(Mutex::new(ServerState::new().unwrap())));
 
