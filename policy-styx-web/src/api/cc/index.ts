@@ -1,5 +1,5 @@
 /* eslint-disable prettier/prettier */
-import { arrayBufferToBase64, encryptWithAESGCM256 } from "@/utils/crypto";
+import { arrayBufferToBase64 } from "@/utils/crypto";
 import { SecureClient } from "./types/client";
 import {
   AttestationReport,
@@ -87,29 +87,37 @@ export async function startAttestation(
  */
 export async function uploadFiles(
   client: SecureClient,
-  payload: ExecutionPayload,
+  payload: ExecutionPayload
 ): Promise<Response> {
-  // 1. Read the user's data file into an ArrayBuffer.
-  const dataBuffer = await payload.dataFile.arrayBuffer();
+  // 1. First, send the plaintext data to data owner backend for encryption
+  const encryptFormData = new FormData();
+  encryptFormData.append("sessionKey", arrayBufferToBase64(client.sessionKey));
+  encryptFormData.append("data", payload.dataFile);
 
-  // 2. Encrypt the data using the derived session key.
-  const encryptedDataBuffer = await encryptWithAESGCM256(
-    client.sessionKey,
-    dataBuffer,
-  );
-  const encryptedDataFile = new Blob(
-    [encryptedDataBuffer.encryptedData, encryptedDataBuffer.iv],
-    { type: "application/octet-stream" },
-  );
+  console.log("🔐 Encrypting data with data owner backend...");
+  const encryptResponse = await fetch(`${verify_backend_url}/encrypt_data`, {
+    method: "POST",
+    body: encryptFormData,
+  });
 
-  // 3. Use FormData to send the encrypted data, program file, and policy engine.
+  if (!encryptResponse.ok) {
+    const errorText = await encryptResponse.text();
+    console.error(`Data encryption failed: ${encryptResponse.status}`, errorText);
+    throw new Error(`Data encryption failed: ${encryptResponse.status}`);
+  }
+
+  const encryptedDataBlob = await encryptResponse.blob();
+  console.log(`✅ Data encrypted (${encryptedDataBlob.size} bytes)`);
+
+  // 2. Upload encrypted data to compute server
   const formData = new FormData();
   formData.append("sessionId", payload.sessionId);
-  formData.append("encryptedDataFile", encryptedDataFile, "encrypted_data.enc");
+  formData.append("encryptedDataFile", encryptedDataBlob, "encrypted_data.bin");
   formData.append("programFile", payload.programFile);
   formData.append("policyEngine", payload.policyEngine);
 
-  // 4. Send the request to the compute backend.
+  // 3. Send the request to the compute backend
+  console.log("📤 Uploading encrypted files to compute server...");
   const response = await fetch(`${compute_backend_url}/upload`, {
     method: "POST",
     body: formData,

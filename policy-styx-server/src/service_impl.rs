@@ -171,16 +171,22 @@ async fn policy_styx_prepare_computation(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    // Load the data.
-    let input_data = bincode::deserialize_from(
-        fs::File::open(data_path).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
-    )
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    // Load encrypted data (do NOT deserialize - pass as-is to WASM)
+    let encrypted_data = fs::read(&data_path)
+        .map_err(|e| {
+            log::error!("Failed to read data file: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+    
+    log::info!("Read data file ({} bytes), passing to WASM for decryption", encrypted_data.len());
 
     sessions
         .rt
-        .pcd_dataset_add_data(&session_id, input_data)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .pcd_dataset_add_data_encrypted(&session_id, &encrypted_data)
+        .map_err(|e| {
+            log::error!("Failed to add encrypted data: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
 
     // --- Step 3: Update the session state ---
     // The borrow for `load_new_application` is now finished. We can start a new

@@ -1,9 +1,12 @@
 use anyhow::{bail, Context, Result};
+use axum::extract::Multipart;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use axum::{Json, Router};
+use base64::Engine;
 use dcap_rs::types::quotes::body::{EnclaveReport, TD10ReportBody};
+use policy_styx_lib::dataset::pcd_dataset_pack_data;
 use dcap_rs::types::quotes::version_4::{QuoteSignatureDataV4, QuoteV4};
 use dcap_rs::types::quotes::{CertData, QuoteHeader};
 use ecdsa::signature::Verifier;
@@ -214,6 +217,84 @@ async fn parse_quote(
     Ok(QuoteParseResponse { quote: quote_str })
 }
 
+async fn encrypt_data(
+    mut multipart: Multipart,
+) -> Result<Vec<u8>, StatusCode> {
+    log::info!("Received data encryption request");
+
+    // Read session key (base64 encoded)
+    let session_key_field = multipart
+        .next_field()
+        .await
+        .map_err(|e| {
+            log::error!("Failed to read sessionKey: {}", e);
+            StatusCode::BAD_REQUEST
+        })?
+        .ok_or_else(|| {
+            log::error!("sessionKey field missing");
+            StatusCode::BAD_REQUEST
+        })?;
+    
+    let session_key_b64 = session_key_field.text()
+        .await
+        .map_err(|e| {
+            log::error!("Failed to parse sessionKey: {}", e);
+            StatusCode::BAD_REQUEST
+        })?;
+    
+    let session_key = base64::engine::general_purpose::STANDARD
+        .decode(&session_key_b64)
+        .map_err(|e| {
+            log::error!("Failed to decode sessionKey from base64: {}", e);
+            StatusCode::BAD_REQUEST
+        })?;
+
+    if session_key.len() != 32 {
+        log::error!("Session key must be 32 bytes, got {}", session_key.len());
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
+    // Read plaintext data
+    let data_field = multipart
+        .next_field()
+        .await
+        .map_err(|e| {
+            log::error!("Failed to read data: {}", e);
+            StatusCode::BAD_REQUEST
+        })?
+        .ok_or_else(|| {
+            log::error!("data field missing");
+            StatusCode::BAD_REQUEST
+        })?;
+    
+    let data = data_field.bytes()
+        .await
+        .map_err(|e| {
+            log::error!("Failed to read data bytes: {}", e);
+            StatusCode::BAD_REQUEST
+        })?;
+
+    log::info!("Encrypting {} bytes of data", data.len());
+
+    // Encrypt the data using the session key
+    let encrypted_data = pcd_dataset_pack_data(&data, &session_key)
+        .map_err(|e| {
+            log::error!("Failed to encrypt data: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    // Serialize the encrypted structure
+    let result = bincode::serialize(&encrypted_data)
+        .map_err(|e| {
+            log::error!("Failed to serialize encrypted data: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    log::info!("Successfully encrypted data ({} bytes)", result.len());
+
+    Ok(result)
+}
+
 pub async fn serve(addr: &str, port: &str) -> Result<(), Box<dyn std::error::Error>> {
     let addr = format!("{}:{}", addr, port);
     // Define the CORS policy.
@@ -229,6 +310,7 @@ pub async fn serve(addr: &str, port: &str) -> Result<(), Box<dyn std::error::Err
     let app = Router::new()
         .route("/api/v1/verify", post(verify_quote_request))
         .route("/api/v1/parse", post(parse_quote))
+        .route("/api/v1/encrypt_data", post(encrypt_data))
         .layer(cors);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;

@@ -10,6 +10,25 @@ use crate::data::{PcdDataset, PcdEncData, PcdPayload};
 use crate::types::{PcdWasmPtr, PcdWasmRawPtr};
 
 impl PcdWasmRuntime {
+    /// Add encrypted data to the dataset (zero-knowledge server).
+    ///
+    /// # Note
+    ///
+    /// This function receives encrypted data from the server and passes it directly
+    /// to the WASM sandbox for decryption. The server never sees the plaintext data.
+    pub fn pcd_dataset_add_data_encrypted(
+        &mut self,
+        session_id: &Uuid,
+        encrypted_bytes: &[u8],
+    ) -> Result<Uuid> {
+        // Deserialize the encrypted data structure
+        let input_data: PcdEncData = bincode::deserialize(encrypted_bytes)
+            .map_err(|e| anyhow!("Failed to deserialize PcdEncData: {}", e))?;
+        
+        // Pass to the existing method
+        self.pcd_dataset_add_data(session_id, input_data)
+    }
+
     /// Add a new data to the dataset.
     ///
     /// # Note

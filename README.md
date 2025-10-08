@@ -84,24 +84,36 @@ Once attestation succeeds, upload three required files:
 
 Click "Upload Files" to securely transfer them to the server.
 
-#### Data Format
+#### Data Format & Security Flow
 
 The data file must be encrypted using AES-GCM encryption and packaged in the `PcdEncData` format:
 
 1. **Raw Data**: Can be JSON, CSV, Parquet, or any binary format
    - Example: `data/ExactTravelTimeDatafromAllMatrix.json` contains healthcare data in JSON format
    
-2. **Encryption Process**:
+2. **Encryption Process** (Data Owner Backend):
    ```rust
-   // Your raw data is wrapped in PcdPayload
-   // Then encrypted with AES-GCM (requires 32-byte key)
-   // Finally packaged as PcdEncData with:
-   // - protocol_version
-   // - owner_id (UUID)
-   // - encrypted_payload (ciphertext + 12-byte nonce)
+   // 1. Data owner derives session key via ECDH
+   // 2. Raw data is wrapped in PcdPayload
+   // 3. Encrypted with AES-GCM using session key
+   // 4. Packaged as PcdEncData:
+   //    - protocol_version
+   //    - owner_id (UUID)
+   //    - encrypted_payload (ciphertext + 12-byte nonce)
    ```
 
-3. **Example**: See `policy-styx-lib/src/dataset.rs` for `pcd_dataset_pack_data()` function that handles the encryption
+3. **Security Flow** (Zero-Knowledge Server):
+   ```
+   Data Owner → [Encrypted Data] → Server → [Encrypted Data] → WASM Sandbox
+                                              ↓
+                                        [Session Key]
+                                              ↓
+                                        WASM Decrypts & Processes
+   ```
+   
+   **Important**: The server NEVER decrypts the data. Only the WASM sandbox has access to both the encrypted data and the session key, ensuring the server remains zero-knowledge.
+
+4. **Example**: See `policy-styx-lib/src/dataset.rs` for `pcd_dataset_pack_data()` function
 
 The system supports both single datasets and multiple named datasets (HashMap format).
 
