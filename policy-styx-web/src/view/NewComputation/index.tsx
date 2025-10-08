@@ -138,29 +138,30 @@ const ComputationWizard = () => {
         }
 
         setComputationStatus("pending");
-        // We first prepare for the context.
-        const response = await prepareComputation(
-            client,
-            dataFile.name,
-            programFile.name,
-        );
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error(
-                `Failed to prepare computation context with status ${response.status}:`,
-                errorText,
-            );
-            alert(
-                `Failed to prepare computation context: ${errorText}. Please check the console for details.`,
-            );
-            setComputationStatus("idle");
-            return;
-        }
-
-        console.log("✅ Computation context prepared successfully:", response);
-
+        
         try {
+            // We first prepare for the context.
+            const response = await prepareComputation(
+                client,
+                dataFile.name,
+                programFile.name,
+            );
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(
+                    `Failed to prepare computation context with status ${response.status}:`,
+                    errorText,
+                );
+                alert(
+                    `Failed to prepare computation context: ${errorText}. Please check the console for details.`,
+                );
+                setComputationStatus("idle");
+                return;
+            }
+
+            console.log("✅ Computation context prepared successfully:", response);
+
             console.log("🚀 Starting computation with ", {
                 dataFile,
                 programFile,
@@ -176,10 +177,9 @@ const ComputationWizard = () => {
         } catch (error) {
             console.error("🔥 Error during computation:", error);
             alert(
-                "Failed to start computation. Please check the console for details.",
+                `Computation failed: ${error}. Please check the console for details.`,
             );
             setComputationStatus("idle");
-            alert(`Computation failed: ${error}`);
         }
     };
 
