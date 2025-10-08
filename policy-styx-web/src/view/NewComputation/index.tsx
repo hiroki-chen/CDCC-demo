@@ -160,13 +160,34 @@ const ComputationWizard = () => {
                 return;
             }
 
-            console.log("✅ Computation context prepared successfully:", response);
+            // Get the data UUID from the response
+            const responseText = await response.text();
+            console.log("Prepare response body:", responseText);
+            
+            if (!responseText) {
+                console.error("Empty response from prepare endpoint");
+                alert("Server returned empty response. Please restart the backend server.");
+                setComputationStatus("idle");
+                return;
+            }
+            
+            const prepareResult = JSON.parse(responseText);
+            const dataUuidString = prepareResult.dataUuid;
+            console.log("✅ Computation context prepared, data UUID:", dataUuidString);
 
-            console.log("🚀 Starting computation with ", {
-                dataFile,
-                programFile,
-            });
-            const args = { data_uuid: new Uint8Array() };
+            // Convert UUID string to bytes
+            const dataUuidBytes = dataUuidString.match(/.{1,2}/g)
+                ?.map((byte: string) => parseInt(byte, 16)) || [];
+            const dataUuid = new Uint8Array(dataUuidBytes.length === 0 
+                ? Array.from({ length: 16 }, (_, i) => {
+                    const hex = dataUuidString.replace(/-/g, '');
+                    return parseInt(hex.substr(i * 2, 2), 16);
+                })
+                : dataUuidBytes
+            );
+
+            console.log("🚀 Starting computation with data UUID:", dataUuidString);
+            const args = { data_uuid: dataUuid };
             const result = await doCompute(client, "entry", args);
 
             setComputationResult(

@@ -129,7 +129,7 @@ type Sessions = Arc<Mutex<ServerState>>;
 async fn policy_styx_prepare_computation(
     State(sessions): State<Sessions>,
     Json(request): Json<PolicyStyxPrepareRequest>,
-) -> Result<(), StatusCode> {
+) -> Result<Json<serde_json::Value>, StatusCode> {
     let session_id = request.session_id;
 
     log::info!("Preparing computation for session {}", session_id);
@@ -201,7 +201,7 @@ async fn policy_styx_prepare_computation(
     
     log::info!("Read data file ({} bytes), passing to WASM for decryption", encrypted_data.len());
 
-    sessions
+    let data_uuid = sessions
         .rt
         .pcd_dataset_add_data_encrypted(&session_id, &encrypted_data)
         .map_err(|e| {
@@ -209,7 +209,11 @@ async fn policy_styx_prepare_computation(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
-    Ok(())
+    log::info!("Data UUID for session {}: {}", session_id, data_uuid);
+
+    Ok(Json(serde_json::json!({
+        "dataUuid": data_uuid.to_string()
+    })))
 }
 
 async fn policy_styx_remote_attestation(
