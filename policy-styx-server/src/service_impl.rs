@@ -241,51 +241,100 @@ async fn policy_styx_upload(
     State(sessions): State<Sessions>,
     mut request: Multipart,
 ) -> Result<PolicyStyxUploadResponse, StatusCode> {
+    log::info!("Starting file upload");
+    
     let session_id = request
         .next_field()
         .await
-        .map_err(|_| StatusCode::BAD_REQUEST)?;
+        .map_err(|e| {
+            log::error!("Failed to read sessionId field: {}", e);
+            StatusCode::BAD_REQUEST
+        })?;
     let session_id = match session_id {
-        Some(field) => field.text().await.map_err(|_| StatusCode::BAD_REQUEST)?,
-        None => return Err(StatusCode::BAD_REQUEST),
+        Some(field) => field.text().await.map_err(|e| {
+            log::error!("Failed to parse sessionId as text: {}", e);
+            StatusCode::BAD_REQUEST
+        })?,
+        None => {
+            log::error!("sessionId field is missing");
+            return Err(StatusCode::BAD_REQUEST);
+        }
     };
+
+    log::info!("Received sessionId: {}", session_id);
 
     // Decode session as base64 into a UUID.
     let session_id = match Uuid::parse_str(&session_id) {
         Ok(id) => id,
-        Err(_) => return Err(StatusCode::BAD_REQUEST),
+        Err(e) => {
+            log::error!("Failed to parse sessionId as UUID: {}", e);
+            return Err(StatusCode::BAD_REQUEST);
+        }
     };
 
     let sessions = sessions.lock().await;
     if let Some(session) = sessions.get(&session_id) {
-        // Here you would handle the upload using the session key.
-        // For now, we just log it.
-        log::info!("Received upload for session {}", session.id);
+        log::info!("Found session {}", session.id);
 
         let data = request
             .next_field()
             .await
-            .map_err(|_| StatusCode::BAD_REQUEST)?
-            .ok_or(StatusCode::BAD_REQUEST)?
+            .map_err(|e| {
+                log::error!("Failed to read data field: {}", e);
+                StatusCode::BAD_REQUEST
+            })?
+            .ok_or_else(|| {
+                log::error!("Data field is missing");
+                StatusCode::BAD_REQUEST
+            })?
             .bytes()
             .await
-            .map_err(|_| StatusCode::BAD_REQUEST)?;
+            .map_err(|e| {
+                log::error!("Failed to read data bytes: {}", e);
+                StatusCode::BAD_REQUEST
+            })?;
+        
+        log::info!("Received data file ({} bytes)", data.len());
+
         let program = request
             .next_field()
             .await
-            .map_err(|_| StatusCode::BAD_REQUEST)?
-            .ok_or(StatusCode::BAD_REQUEST)?
+            .map_err(|e| {
+                log::error!("Failed to read program field: {}", e);
+                StatusCode::BAD_REQUEST
+            })?
+            .ok_or_else(|| {
+                log::error!("Program field is missing");
+                StatusCode::BAD_REQUEST
+            })?
             .bytes()
             .await
-            .map_err(|_| StatusCode::BAD_REQUEST)?;
+            .map_err(|e| {
+                log::error!("Failed to read program bytes: {}", e);
+                StatusCode::BAD_REQUEST
+            })?;
+        
+        log::info!("Received program file ({} bytes)", program.len());
+
         let policy_engine = request
             .next_field()
             .await
-            .map_err(|_| StatusCode::BAD_REQUEST)?
-            .ok_or(StatusCode::BAD_REQUEST)?
+            .map_err(|e| {
+                log::error!("Failed to read policyEngine field: {}", e);
+                StatusCode::BAD_REQUEST
+            })?
+            .ok_or_else(|| {
+                log::error!("PolicyEngine field is missing");
+                StatusCode::BAD_REQUEST
+            })?
             .bytes()
             .await
-            .map_err(|_| StatusCode::BAD_REQUEST)?;
+            .map_err(|e| {
+                log::error!("Failed to read policyEngine bytes: {}", e);
+                StatusCode::BAD_REQUEST
+            })?;
+        
+        log::info!("Received policy engine file ({} bytes)", policy_engine.len());
 
         fs::write(format!("./data/data-{session_id:?}"), &data)
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
