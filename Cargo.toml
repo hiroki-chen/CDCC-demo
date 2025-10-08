@@ -5,7 +5,7 @@ members = [
     "policy-styx-data-owner",
     "policy-styx-lib",
     "policy-styx-proto",
-    "sandbox-apps/cox-demo",
+    # "sandbox-apps/cox-demo",
     "sandbox-apps/polars-demo",
     "sandbox-apps/policy-engine",
     "tools/policy-data-generator",
