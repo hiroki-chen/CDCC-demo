@@ -24,7 +24,7 @@ impl PcdWasmRuntime {
         // Deserialize the encrypted data structure
         let input_data: PcdEncData = bincode::deserialize(encrypted_bytes)
             .map_err(|e| anyhow!("Failed to deserialize PcdEncData: {}", e))?;
-        
+
         // Pass to the existing method
         self.pcd_dataset_add_data(session_id, input_data)
     }
@@ -296,20 +296,16 @@ pub fn pcd_dataset_pack_data(data: &[u8], key: &[u8]) -> Result<PcdEncData> {
 ///     bincode::serialize(&data).unwrap()
 /// };
 /// ```
-pub fn pcd_dataset_pack_data_multiple<I, T, S>(data: I, key: &[u8]) -> Result<PcdEncData>
+pub fn pcd_dataset_pack_data_multiple<I, T, S>(data: I) -> Result<Vec<u8>>
 where
     I: IntoIterator<Item = (S, T)>,
     T: AsRef<[u8]>,
     S: AsRef<str>,
 {
-    let packed_data = {
-        let data = data
-            .into_iter()
-            .map(|(name, data)| (name.as_ref().to_string(), data.as_ref().to_vec()))
-            .collect::<HashMap<_, _>>();
+    let data = data
+        .into_iter()
+        .map(|(name, data)| (name.as_ref().to_string(), data.as_ref().to_vec()))
+        .collect::<HashMap<_, _>>();
 
-        bincode::serialize(&data).map_err(|e| anyhow::anyhow!("Failed to serialize data: {}", e))?
-    };
-
-    pcd_dataset_pack_data(&packed_data, key)
+    bincode::serialize(&data).map_err(|e| anyhow::anyhow!("Failed to serialize data: {}", e))
 }

@@ -1,7 +1,6 @@
 //! Generate mock data.
 
 use clap::Parser;
-use policy_styx_lib::crypto::pcd_crypto_backend_aes_gcm_randkey_generate;
 use policy_styx_lib::dataset::pcd_dataset_pack_data_multiple;
 
 #[derive(Parser, Clone, Debug)]
@@ -65,15 +64,10 @@ fn main() {
         })
         .collect::<Vec<_>>();
 
-    let key = pcd_crypto_backend_aes_gcm_randkey_generate().expect("Failed to generate random key");
-    let data = pcd_dataset_pack_data_multiple(files, &key).expect("Failed to pack data");
+    let data = pcd_dataset_pack_data_multiple(files).expect("Failed to pack data");
 
     // Write to the output.
-    let output_file = format!("{}/data.enc", args.output);
-    let data = bincode::serialize(&data).expect("Failed to serialize data");
-    std::fs::write(&output_file, &data).expect("Failed to write data to file");
-
-    // Write the key to a separate file.
-    let key_file = format!("{}/key", args.output);
-    std::fs::write(&key_file, key).expect("Failed to write key to file");
+    let packed_path = format!("{}/data.bin", args.output);
+    std::fs::write(&packed_path, &data).expect("Failed to write packed data");
+    println!("Packed data written to: {}", packed_path);
 }

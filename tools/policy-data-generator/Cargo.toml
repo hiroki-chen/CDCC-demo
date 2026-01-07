@@ -1,7 +1,11 @@
 [package]
-name = "policy-data-generator"
+name = "policy-tools"
 version = "0.1.0"
 edition = "2021"
+
+[[bin]]
+name = "policy-data-generator"
+path = "src/main.rs"
 
 [dependencies]
 bincode = { workspace = true }

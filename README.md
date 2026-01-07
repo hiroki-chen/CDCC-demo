@@ -173,3 +173,5 @@ cargo run --bin policy-styx-data-owner
 ## License
 
 MIT License
+
+TODO: The uploaded data format is wrong; it should be a packet dataset consisting of tables and their parquet content.

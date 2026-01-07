@@ -4353,15 +4353,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "policy-data-generator"
-version = "0.1.0"
-dependencies = [
- "bincode",
- "clap 4.5.40",
- "policy-styx-lib",
-]
-
-[[package]]
 name = "policy-engine"
 version = "0.1.0"
 dependencies = [
@@ -4444,6 +4435,15 @@ dependencies = [
  "tower-http",
  "uuid",
  "wasi-common",
+]
+
+[[package]]
+name = "policy-tools"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "clap 4.5.40",
+ "policy-styx-lib",
 ]
 
 [[package]]

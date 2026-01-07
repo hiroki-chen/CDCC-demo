@@ -4,14 +4,14 @@ import CX from 'classnames';
 import { observer } from 'mobx-react-lite';
 import {
     IconContext,
-    GlobeHemisphereEast,
-    HardDrives,
-    IceCream,
-    Keyboard,
-    InstagramLogo,
-    FileTsx,
+    // GlobeHemisphereEast,
+    // HardDrives,
+    // IceCream,
+    // Keyboard,
+    // InstagramLogo,
+    // FileTsx,
     GithubLogo,
-    GameController,
+    // GameController,
     CommandIcon
 } from '@phosphor-icons/react';
 import { Button } from '@/components';
@@ -34,13 +34,13 @@ function Home() {
 
     const MenuLink = [
         { name: 'New Computation', icon: <CommandIcon />, link: '/home/new-computation' },
-        { name: 'Data Owner', icon: <GlobeHemisphereEast />, link: '/home/one' },
-        { name: 'Developer', icon: <GameController />, link: '/home/two' },
-        { name: 'HomeThree', icon: <FileTsx />, link: '/home/three' },
-        { name: 'Mobx 数据更新', icon: <HardDrives />, link: '/home/mobx' },
-        { name: 'Phosphor 图标库', icon: <InstagramLogo />, link: '/home/four' },
-        { name: 'Svg 封装', icon: <IceCream />, link: '/home/icon' },
-        { name: '订单查询', icon: <Keyboard />, link: '/home/order' }
+        // { name: 'Data Owner', icon: <GlobeHemisphereEast />, link: '/home/one' },
+        // { name: 'Developer', icon: <GameController />, link: '/home/two' },
+        // { name: 'HomeThree', icon: <FileTsx />, link: '/home/three' },
+        // { name: 'Mobx 数据更新', icon: <HardDrives />, link: '/home/mobx' },
+        // { name: 'Phosphor 图标库', icon: <InstagramLogo />, link: '/home/four' },
+        // { name: 'Svg 封装', icon: <IceCream />, link: '/home/icon' },
+        // { name: '订单查询', icon: <Keyboard />, link: '/home/order' }
     ];
 
     const handleClickLink = (link: string) => {
